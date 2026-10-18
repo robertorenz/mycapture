@@ -9,8 +9,8 @@ A shiny little moon peeks out from the edge of your screen, half showing. Hover 
 ## Features
 
 - **Screenshots**: freeze the screen, drag an area or click a window to grab it, then fine-tune with resize handles and a magnifier.
-- **Annotate**: arrows, boxes, ellipses, highlighter, pen, text, numbered steps and pixelate, with undo and redo.
-- **Screen video**: record any area to MP4 (H.264 + AAC) with your microphone. You can pause, resume, finish or discard, and there is a countdown before it starts.
+- **Annotate**: Snagit-style arrows (classic, double, curved, block, tapered, dashed, pointer, line) and callouts (filled bubble, outlined bubble, square label, speech balloon), plus boxes, ellipses, highlighter, pen, text, numbered steps and pixelate, with undo and redo. If an arrow or callout goes past the edge of the screenshot, the canvas grows to fit it.
+- **Screen video**: record any area to MP4 (H.264 at CRF 23 + AAC 128 kbps, so roughly 5–15 MB per minute of desktop work) with your microphone. Recordings are written as crash-safe MKV segments and joined into the MP4 when you finish. You can pause, resume, finish or discard, and there is a countdown before it starts.
 - **Webcam bubble**: puts your camera in a corner of the recorded area. It can be a circle or a rounded square, you can resize it, and you can drag it anywhere. It is recorded along with the screen.
 - **Paste anywhere**: screenshots go to the clipboard as images, and videos and images can be copied as files. Paste them straight into WhatsApp, Teams, Slack, email and so on.
 - **Share links**: upload to the bundled self-hosted server, to S3-compatible storage (Cloudflare R2, AWS S3, Backblaze B2, MinIO) or to any multipart upload endpoint. The link is copied to your clipboard.
@@ -75,7 +75,7 @@ To connect the app, open Settings → Sharing, choose **myCapture server**, and 
 | Moon | Hover to open the menu, click to capture, drag to dock it on another edge |
 | Capture screen | Drag to select an area, click a window to select it, **Enter** for an image, **V** for a video, **Esc** to cancel |
 | Recording bar | Pause/resume, camera, **Finish**, discard; the hotkey also finishes the recording |
-| Editor | `A R E H P T N B` switch tools, `Ctrl+Z`/`Ctrl+Y` undo/redo, `Ctrl+C` copy, `Ctrl+S` save as |
+| Editor | `A C R E H P T N B` switch tools (C = callout; drag from the spot to point at, to where the bubble goes), `Ctrl+Z`/`Ctrl+Y` undo/redo, `Ctrl+C` copy, `Ctrl+S` save as |
 
 Captures are stored in:
 

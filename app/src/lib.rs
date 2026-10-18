@@ -15,6 +15,7 @@ use tauri::{
     AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder,
 };
+use tauri::webview::{PermissionKind, PermissionResponse};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use tauri_plugin_opener::OpenerExt;
@@ -99,6 +100,11 @@ fn open_camera(app: &AppHandle, at: Option<Rect>) -> Result<(), String> {
             .always_on_top(true)
             .skip_taskbar(true)
             .visible(false)
+            // Grant our own bubble the camera so no browser prompt pops into the recording.
+            .on_permission_request(|_, kind| match kind {
+                PermissionKind::Camera => PermissionResponse::Allow,
+                _ => PermissionResponse::Default,
+            })
             .build()
             .map_err(|e| e.to_string())?,
     };
@@ -366,7 +372,8 @@ fn record_cancel(app: AppHandle) {
 
 // ---------- camera ----------
 
-#[tauri::command]
+// Creates windows: must not run on the main thread (WebView2 deadlocks).
+#[tauri::command(async)]
 fn toggle_camera(app: AppHandle) -> Result<bool, String> {
     if app.get_webview_window("camera").is_some() {
         close_window(&app, "camera");
@@ -599,17 +606,20 @@ fn save_edited(app: AppHandle, request: tauri::ipc::Request<'_>) -> Result<(), S
     Ok(())
 }
 
-#[tauri::command]
+// Creates windows: must not run on the main thread (WebView2 deadlocks).
+#[tauri::command(async)]
 fn open_editor(app: AppHandle, id: String) -> Result<(), String> {
     open_editor_window(&app, &id)
 }
 
-#[tauri::command]
+// Creates windows: must not run on the main thread (WebView2 deadlocks).
+#[tauri::command(async)]
 fn open_history(app: AppHandle) -> Result<(), String> {
     open_page(&app, "history", "history.html", "myCapture — History", 1040.0, 720.0).map(|_| ())
 }
 
-#[tauri::command]
+// Creates windows: must not run on the main thread (WebView2 deadlocks).
+#[tauri::command(async)]
 fn open_settings(app: AppHandle) -> Result<(), String> {
     open_page(&app, "settings", "settings.html", "myCapture — Settings", 780.0, 720.0).map(|_| ())
 }

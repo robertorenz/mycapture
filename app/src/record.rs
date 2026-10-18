@@ -146,14 +146,15 @@ fn build_args(s: &Settings, r: &Recording, out: &Path) -> Vec<String> {
         a.extend(["-vf".into(), vf]);
     }
     a.extend(["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p"].map(String::from));
-    a.extend(["-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart"].map(String::from));
+    a.extend(["-c:a", "aac", "-b:a", "128k"].map(String::from));
     a.push(out.to_string_lossy().to_string());
     a
 }
 
 /// Start a new ffmpeg segment. Fails fast if ffmpeg exits right away.
 pub fn start_segment(s: &Settings, r: &mut Recording) -> Result<(), String> {
-    let out = work_dir(&r.id).join(format!("seg{:03}.mp4", r.segments.len()));
+    // Matroska segments stay playable even if the app or ffmpeg dies mid-recording.
+    let out = work_dir(&r.id).join(format!("seg{:03}.mkv", r.segments.len()));
     let mut child = command(&s.ffmpeg())
         .args(build_args(s, r, &out))
         .stdin(Stdio::piped())
@@ -227,22 +228,23 @@ pub fn finalize(s: &Settings, mut r: Recording) -> Result<history::Item, String>
     let id = r.id.clone();
     let file = format!("{id}.mp4");
     let dest = captures_dir().join(&file);
-    if segs.len() == 1 {
-        std::fs::copy(&segs[0], &dest).map_err(|e| e.to_string())?;
-    } else {
-        let list = work_dir(&id).join("list.txt");
-        let body: String = segs.iter().map(|p| format!("file '{}'\n", p.to_string_lossy().replace('\\', "/").replace('\'', "'\\''"))).collect();
-        std::fs::write(&list, body).map_err(|e| e.to_string())?;
-        let st = command(&s.ffmpeg())
-            .args(["-hide_banner", "-loglevel", "error", "-y", "-f", "concat", "-safe", "0", "-i"])
-            .arg(&list)
-            .args(["-c", "copy", "-movflags", "+faststart"])
-            .arg(&dest)
-            .status()
-            .map_err(|e| e.to_string())?;
-        if !st.success() {
-            return Err("Could not join the recording segments.".into());
-        }
+    // Join (or just remux) the segments into a web-friendly MP4.
+    let list = work_dir(&id).join("list.txt");
+    let body: String = segs
+        .iter()
+        .map(|p| format!("file '{}'\n", p.to_string_lossy().replace('\\', "/").replace('\'', "'\\''")))
+        .collect();
+    std::fs::write(&list, body).map_err(|e| e.to_string())?;
+    let st = command(&s.ffmpeg())
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-f", "concat", "-safe", "0", "-i"])
+        .arg(&list)
+        .args(["-c", "copy", "-movflags", "+faststart"])
+        .arg(&dest)
+        .stdin(Stdio::null())
+        .status()
+        .map_err(|e| e.to_string())?;
+    if !st.success() {
+        return Err(format!("Could not finish the video. The raw recording is kept in {}", work_dir(&id).display()));
     }
     let thumb = format!("{id}.thumb.jpg");
     let _ = command(&s.ffmpeg())
@@ -250,6 +252,7 @@ pub fn finalize(s: &Settings, mut r: Recording) -> Result<history::Item, String>
         .arg(&dest)
         .args(["-frames:v", "1", "-vf", "scale=360:-2"])
         .arg(captures_dir().join(&thumb))
+        .stdin(Stdio::null())
         .status();
     let _ = std::fs::remove_dir_all(work_dir(&id));
     let item = history::Item {

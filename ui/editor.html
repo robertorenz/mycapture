@@ -41,7 +41,7 @@
   .sz i { display: block; background: #c3cbe0; border-radius: 4px; width: 22px; }
 
   #stage {
-    position: relative; overflow: hidden; display: grid; place-items: center; padding: 20px;
+    position: relative; overflow: hidden; display: grid; place-items: center; padding: 64px 20px 20px;
     background-color: #0a101c;
     background-image: radial-gradient(rgba(255, 255, 255, .045) 1px, transparent 1px);
     background-size: 18px 18px;
@@ -53,6 +53,21 @@
     outline: none; padding: 0 2px; resize: none; overflow: hidden; font-weight: 700; line-height: 1.2;
     font-family: "Segoe UI", -apple-system, sans-serif; white-space: pre; user-select: text;
   }
+
+  #opts {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 5; display: none;
+    align-items: center; gap: 4px; padding: 5px 6px; border-radius: 12px;
+    background: rgba(17, 26, 46, .96); border: 1px solid var(--line); box-shadow: var(--shadow);
+  }
+  #opts.show { display: flex; }
+  #opts .lab { font-size: 11.5px; font-weight: 600; color: var(--muted); padding: 0 6px 0 4px; text-transform: uppercase; letter-spacing: .05em; }
+  #opts button {
+    width: 46px; height: 34px; border-radius: 8px; border: 1px solid transparent; background: transparent;
+    color: #c3cbe0; display: grid; place-items: center; cursor: pointer;
+  }
+  #opts button:hover { background: var(--panel-2); }
+  #opts button.on { background: rgba(245, 158, 11, .14); border-color: rgba(245, 158, 11, .55); color: var(--accent); }
+  #opts svg { width: 34px; height: 22px; }
 
   footer {
     grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; padding: 10px 14px; flex-wrap: wrap;
@@ -80,6 +95,7 @@
   <button class="t" data-tool="highlight" title="Highlighter (H)" data-icon="highlight"></button>
   <button class="t" data-tool="pen" title="Pen (P)" data-icon="pen"></button>
   <button class="t" data-tool="text" title="Text (T)" data-icon="text"></button>
+  <button class="t" data-tool="callout" title="Callout (C)" data-icon="callout"></button>
   <button class="t" data-tool="step" title="Numbered step (N)" data-icon="step"></button>
   <button class="t" data-tool="blur" title="Pixelate (B)" data-icon="blur"></button>
   <hr>
@@ -97,6 +113,7 @@
   <canvas id="canvas" class="img-only"></canvas>
   <video id="video" class="vid-only" controls></video>
   <textarea id="txt" rows="1" spellcheck="false"></textarea>
+  <div id="opts"></div>
 </main>
 
 <footer>
@@ -142,26 +159,179 @@ function setTool(t) {
   tool = t;
   document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
   cv.style.cursor = t === 'text' ? 'text' : 'crosshair';
+  renderOpts();
 }
 document.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => setTool(b.dataset.tool));
 
 // ---------- drawing ----------
-const unit = () => Math.max(2, Math.round(Math.hypot(cv.width, cv.height) / 450));
+const unit = () => Math.max(2, Math.round(Math.hypot(base.naturalWidth || cv.width, base.naturalHeight || cv.height) / 450));
 const fontPx = s => Math.round(unit() * 7 * s.size);
 
+// ---------- arrow & callout styles ----------
+const store = {
+  get(k, d) { try { return localStorage.getItem(k) || d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+let arrowStyle = store.get('arrowStyle', 'classic');
+let calloutStyle = store.get('calloutStyle', 'bubble');
+
+const ARROW_STYLES = [
+  ['classic', 'Arrow', '<path d="M4 18L24 7" stroke-width="2.5"/><path d="M28 5l-8 1 4 6z" fill="currentColor" stroke="none"/>'],
+  ['double', 'Double arrow', '<path d="M8 16L24 8" stroke-width="2.5"/><path d="M28 5l-8 1 4 6zM4 19l8-1-4-6z" fill="currentColor" stroke="none"/>'],
+  ['curved', 'Curved arrow', '<path d="M4 18Q8 3 23 7" stroke-width="2.5"/><path d="M28 9l-8-6 0 9z" fill="currentColor" stroke="none"/>'],
+  ['fat', 'Block arrow', '<path d="M3 8h16V3l10 8-10 8v-5H3z" fill="currentColor" stroke="none"/>'],
+  ['tapered', 'Tapered arrow', '<path d="M4 19L19 9 21 12.5z" fill="currentColor" stroke="none"/><path d="M28 5l-10 2 4.5 7z" fill="currentColor" stroke="none"/>'],
+  ['dashed', 'Dashed arrow', '<path d="M4 18L24 7" stroke-width="2.5" stroke-dasharray="4 3"/><path d="M28 5l-8 1 4 6z" fill="currentColor" stroke="none"/>'],
+  ['dot', 'Pointer', '<circle cx="6" cy="17" r="3" fill="currentColor" stroke="none"/><path d="M8 16L24 7" stroke-width="2.5"/><path d="M28 5l-8 1 4 6z" fill="currentColor" stroke="none"/>'],
+  ['line', 'Line', '<path d="M4 18L28 5" stroke-width="2.5"/>'],
+];
+const CALLOUT_STYLES = [
+  ['bubble', 'Filled bubble', '<rect x="4" y="2" width="26" height="13" rx="5" fill="currentColor" stroke="none"/><path d="M9 14l-3 7 8-7z" fill="currentColor" stroke="none"/>'],
+  ['outline', 'Outlined bubble', '<rect x="4.5" y="2.5" width="25" height="12" rx="5" stroke-width="2"/><path d="M10 14.5l-4 6 8-6" stroke-width="2"/>'],
+  ['label', 'Square label', '<rect x="4" y="2" width="26" height="13" fill="currentColor" stroke="none"/><path d="M9 14l-4 7 9-7z" fill="currentColor" stroke="none"/>'],
+  ['round', 'Speech balloon', '<ellipse cx="17" cy="9" rx="13" ry="7" fill="currentColor" stroke="none"/><path d="M9 13l-4 8 9-6z" fill="currentColor" stroke="none"/>'],
+];
+
+function renderOpts() {
+  const bar = $('opts');
+  const set = tool === 'arrow' ? ARROW_STYLES : tool === 'callout' ? CALLOUT_STYLES : null;
+  bar.classList.toggle('show', !!set && item?.kind === 'image');
+  if (!set) return;
+  const cur = tool === 'arrow' ? arrowStyle : calloutStyle;
+  bar.innerHTML = `<span class="lab">${tool === 'arrow' ? 'Arrow' : 'Callout'}</span>` + set.map(([sid, name, svg]) =>
+    `<button data-style="${sid}" title="${name}" class="${sid === cur ? 'on' : ''}"><svg viewBox="0 0 32 22" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${svg}</svg></button>`).join('');
+}
+$('opts').addEventListener('mousedown', e => e.stopPropagation());
+$('opts').addEventListener('click', e => {
+  const b = e.target.closest('[data-style]');
+  if (!b) return;
+  if (tool === 'arrow') { arrowStyle = b.dataset.style; store.set('arrowStyle', arrowStyle); }
+  else { calloutStyle = b.dataset.style; store.set('calloutStyle', calloutStyle); }
+  renderOpts();
+});
+
+function head(c, x, y, ang, size) {
+  c.beginPath();
+  c.moveTo(x, y);
+  c.lineTo(x - size * Math.cos(ang - .45), y - size * Math.sin(ang - .45));
+  c.lineTo(x - size * Math.cos(ang + .45), y - size * Math.sin(ang + .45));
+  c.closePath();
+  c.fill();
+}
+
 function arrow(c, s) {
-  const w = unit() * s.size, ang = Math.atan2(s.y2 - s.y1, s.x2 - s.x1);
-  const head = Math.max(12, w * 4.2), len = Math.hypot(s.x2 - s.x1, s.y2 - s.y1);
+  const st = s.style || 'classic';
+  const w = unit() * s.size, len = Math.hypot(s.x2 - s.x1, s.y2 - s.y1);
   if (len < 2) return;
-  const bx = s.x2 - Math.cos(ang) * head * .8, by = s.y2 - Math.sin(ang) * head * .8;
+  const ang = Math.atan2(s.y2 - s.y1, s.x2 - s.x1), hs = Math.max(12, w * 4.2);
+  const cos = Math.cos(ang), sin = Math.sin(ang);
   c.lineCap = 'round';
   c.lineWidth = w;
-  c.beginPath(); c.moveTo(s.x1, s.y1); c.lineTo(bx, by); c.stroke();
+  if (st === 'fat' || st === 'tapered') {
+    // Filled polygon arrows: shaft half-widths at the tail (t0) and at the head base (t1).
+    const hl = Math.min(len * .45, st === 'fat' ? w * 6 : hs * 1.1);
+    const hw = st === 'fat' ? w * 3.4 : hs * .55;
+    const t0 = st === 'fat' ? w * 1.5 : w * .2, t1 = st === 'fat' ? w * 1.5 : w * .9;
+    const bx = s.x2 - cos * hl, by = s.y2 - sin * hl, nx = -sin, ny = cos;
+    c.beginPath();
+    c.moveTo(s.x1 + nx * t0, s.y1 + ny * t0);
+    c.lineTo(bx + nx * t1, by + ny * t1);
+    c.lineTo(bx + nx * hw, by + ny * hw);
+    c.lineTo(s.x2, s.y2);
+    c.lineTo(bx - nx * hw, by - ny * hw);
+    c.lineTo(bx - nx * t1, by - ny * t1);
+    c.lineTo(s.x1 - nx * t0, s.y1 - ny * t0);
+    c.closePath();
+    c.fill();
+    if (st === 'fat') {
+      c.shadowColor = 'transparent';
+      c.lineWidth = Math.max(1.5, w * .35);
+      c.strokeStyle = s.color === '#ffffff' ? '#0f172a' : 'rgba(255,255,255,.9)';
+      c.stroke();
+    }
+    return;
+  }
+  if (st === 'curved') {
+    // Bow to the left of the direction of travel; the head follows the curve's tangent.
+    const mx = (s.x1 + s.x2) / 2 - sin * len * .28, my = (s.y1 + s.y2) / 2 + cos * len * .28;
+    const ea = Math.atan2(s.y2 - my, s.x2 - mx);
+    const ex = s.x2 - Math.cos(ea) * hs * .8, ey = s.y2 - Math.sin(ea) * hs * .8;
+    c.beginPath(); c.moveTo(s.x1, s.y1); c.quadraticCurveTo(mx, my, ex, ey); c.stroke();
+    head(c, s.x2, s.y2, ea, hs);
+    return;
+  }
+  const hasHead = st !== 'line';
+  const sx = st === 'double' ? s.x1 + cos * hs * .8 : s.x1, sy = st === 'double' ? s.y1 + sin * hs * .8 : s.y1;
+  const ex = hasHead ? s.x2 - cos * hs * .8 : s.x2, ey = hasHead ? s.y2 - sin * hs * .8 : s.y2;
+  if (st === 'dashed') { c.setLineDash([w * 2.6, w * 2]); c.lineCap = 'butt'; }
+  c.beginPath(); c.moveTo(sx, sy); c.lineTo(ex, ey); c.stroke();
+  c.setLineDash([]);
+  if (hasHead) head(c, s.x2, s.y2, ang, hs);
+  if (st === 'double') head(c, s.x1, s.y1, ang + Math.PI, hs);
+  if (st === 'dot') { c.beginPath(); c.arc(s.x1, s.y1, w * 1.7, 0, Math.PI * 2); c.fill(); }
+}
+
+const FONT = '"Segoe UI", -apple-system, sans-serif';
+const darkInk = col => col === '#ffffff' || col === '#facc15' || col === '#f59e0b';
+
+/** Geometry of a callout bubble centred on (bx, by). */
+function calloutBox(s) {
+  const fs = Math.round(fontPx(s) * .8), pad = Math.round(fs * .65), lh = fs * 1.25;
+  ctx.save();
+  ctx.font = `600 ${fs}px ${FONT}`;
+  const lines = (s.text || '').split('\n');
+  const tw = Math.max(fs * 3, ...lines.map(l => ctx.measureText(l).width));
+  ctx.restore();
+  const roundish = s.style === 'round';
+  const textH = lines.length * lh - (lh - fs);
+  const w = tw + pad * 2 + (roundish ? fs * 1.6 : 0);
+  const h = textH + pad * 2 + (roundish ? fs * .9 : 0);
+  return { x: s.bx - w / 2, y: s.by - h / 2, w, h, fs, pad, lh, lines, tw, tx: s.bx - tw / 2, ty: s.by - textH / 2 };
+}
+
+function calloutPath(c, s, b) {
+  const st = s.style || 'bubble';
+  const cx = s.bx, cy = s.by;
   c.beginPath();
-  c.moveTo(s.x2, s.y2);
-  c.lineTo(s.x2 - head * Math.cos(ang - .45), s.y2 - head * Math.sin(ang - .45));
-  c.lineTo(s.x2 - head * Math.cos(ang + .45), s.y2 - head * Math.sin(ang + .45));
-  c.closePath(); c.fill();
+  if (st === 'round') c.ellipse(cx, cy, b.w / 2, b.h / 2, 0, 0, Math.PI * 2);
+  else if (st === 'label') c.rect(b.x, b.y, b.w, b.h);
+  else c.roundRect(b.x, b.y, b.w, b.h, Math.min(b.h / 2, b.fs * .7));
+  // Tail: a wedge from the bubble centre to the tip, unless the tip is under the bubble.
+  const outside = Math.abs(s.tx - cx) > b.w / 2 || Math.abs(s.ty - cy) > b.h / 2;
+  if (outside) {
+    const ang = Math.atan2(s.ty - cy, s.tx - cx), base = Math.min(b.w, b.h) * .3;
+    const nx = -Math.sin(ang) * base / 2, ny = Math.cos(ang) * base / 2;
+    c.moveTo(cx + nx, cy + ny);
+    c.lineTo(s.tx, s.ty);
+    c.lineTo(cx - nx, cy - ny);
+    c.closePath();
+  }
+}
+
+function drawCallout(c, s, editing) {
+  const b = calloutBox(s), st = s.style || 'bubble';
+  c.save();
+  c.shadowColor = 'rgba(0,0,0,.35)'; c.shadowBlur = unit() * 2; c.shadowOffsetY = unit() * .6;
+  if (st === 'outline') {
+    // Stroke the merged outline, then fill over it so the tail joins the bubble seamlessly.
+    c.lineWidth = unit() * 1.6 * Math.max(1, s.size * .8);
+    c.strokeStyle = s.color;
+    calloutPath(c, s, b); c.stroke();
+    c.shadowColor = 'transparent';
+    c.fillStyle = '#ffffff';
+    calloutPath(c, s, b); c.fill('nonzero');
+  } else {
+    c.fillStyle = s.color;
+    calloutPath(c, s, b); c.fill('nonzero');
+  }
+  c.restore();
+  if (editing) return;
+  c.save();
+  c.font = `600 ${b.fs}px ${FONT}`;
+  c.textBaseline = 'top';
+  c.fillStyle = st === 'outline' || darkInk(s.color) ? '#0f172a' : '#ffffff';
+  b.lines.forEach((l, i) => c.fillText(l, b.tx, b.ty + i * b.lh));
+  c.restore();
 }
 
 function rectOf(s) { return { x: Math.min(s.x1, s.x2), y: Math.min(s.y1, s.y2), w: Math.abs(s.x2 - s.x1), h: Math.abs(s.y2 - s.y1) }; }
@@ -174,6 +344,7 @@ function drawShape(c, s) {
   const r = rectOf(s);
   switch (s.type) {
     case 'arrow': shadow(); arrow(c, s); break;
+    case 'callout': drawCallout(c, s, s === editingCallout); break;
     case 'rect': shadow(); c.lineWidth = unit() * s.size; c.strokeRect(r.x, r.y, r.w, r.h); break;
     case 'ellipse':
       shadow(); c.lineWidth = unit() * s.size;
@@ -190,7 +361,7 @@ function drawShape(c, s) {
       const px = Math.max(6, Math.round(unit() * 4 * s.size));
       const tw = Math.max(1, Math.round(r.w / px)), th = Math.max(1, Math.round(r.h / px));
       const t = document.createElement('canvas'); t.width = tw; t.height = th;
-      t.getContext('2d').drawImage(cv, r.x, r.y, r.w, r.h, 0, 0, tw, th);
+      t.getContext('2d').drawImage(cv, r.x - origin.x, r.y - origin.y, r.w, r.h, 0, 0, tw, th);
       c.imageSmoothingEnabled = false;
       c.drawImage(t, 0, 0, tw, th, r.x, r.y, r.w, r.h);
       break;
@@ -223,9 +394,66 @@ function drawShape(c, s) {
   c.restore();
 }
 
+// Image coordinates of the canvas's top-left pixel. Shapes are stored in image coordinates;
+// when they reach past the screenshot the canvas grows (with a white margin) to include them.
+let origin = { x: 0, y: 0 };
+
+function shapeBounds(s) {
+  const u = unit(), m = u * 3;
+  const box = (x0, y0, x1, y1, p) => ({ x0: Math.min(x0, x1) - p, y0: Math.min(y0, y1) - p, x1: Math.max(x0, x1) + p, y1: Math.max(y0, y1) + p });
+  const join = (a, b) => ({ x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) });
+  switch (s.type) {
+    case 'arrow': {
+      const p = Math.max(12, u * s.size * 4.2) * .6 + m;
+      let b = box(s.x1, s.y1, s.x2, s.y2, p);
+      if (s.style === 'curved') {
+        const len = Math.hypot(s.x2 - s.x1, s.y2 - s.y1), ang = Math.atan2(s.y2 - s.y1, s.x2 - s.x1);
+        const mx = (s.x1 + s.x2) / 2 - Math.sin(ang) * len * .14, my = (s.y1 + s.y2) / 2 + Math.cos(ang) * len * .14;
+        b = join(b, box(mx, my, mx, my, p));
+      }
+      return b;
+    }
+    case 'rect': case 'ellipse': case 'highlight': case 'blur':
+      return box(s.x1, s.y1, s.x2, s.y2, u * s.size + m);
+    case 'pen': {
+      const xs = s.pts.map(p => p[0]), ys = s.pts.map(p => p[1]);
+      return box(Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys), u * s.size + m);
+    }
+    case 'text': {
+      const fs = fontPx(s), lines = s.text.split('\n');
+      ctx.save();
+      ctx.font = `700 ${fs}px ${FONT}`;
+      const w = Math.max(...lines.map(l => ctx.measureText(l).width));
+      ctx.restore();
+      return { x0: s.x - m, y0: s.y - m, x1: s.x + w + m, y1: s.y + lines.length * fs * 1.2 + m };
+    }
+    case 'step':
+      return box(s.x, s.y, s.x, s.y, u * 5.5 * s.size + m);
+    case 'callout': {
+      const b = calloutBox(s);
+      return box(Math.min(b.x, s.tx), Math.min(b.y, s.ty), Math.max(b.x + b.w, s.tx), Math.max(b.y + b.h, s.ty), m);
+    }
+  }
+  return null;
+}
+
 function render() {
   if (!base.naturalWidth) return;
+  let x0 = 0, y0 = 0, x1 = base.naturalWidth, y1 = base.naturalHeight;
+  for (const s of drawing ? [...shapes, drawing] : shapes) {
+    const b = shapeBounds(s);
+    if (!b) continue;
+    x0 = Math.min(x0, b.x0); y0 = Math.min(y0, b.y0); x1 = Math.max(x1, b.x1); y1 = Math.max(y1, b.y1);
+  }
+  x0 = Math.floor(x0); y0 = Math.floor(y0);
+  const w = Math.ceil(x1) - x0, h = Math.ceil(y1) - y0;
+  origin = { x: x0, y: y0 };
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; fit(); }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.setTransform(1, 0, 0, 1, -x0, -y0);
   ctx.drawImage(base, 0, 0);
   shapes.forEach(s => drawShape(ctx, s));
   if (drawing) drawShape(ctx, drawing);
@@ -235,8 +463,9 @@ function render() {
 
 function fit() {
   if (!base.naturalWidth) return;
-  const st = $('stage'), pad = 40;
-  scale = Math.min((st.clientWidth - pad) / cv.width, (st.clientHeight - pad) / cv.height, 1);
+  // Leave room at the top for the style bar.
+  const st = $('stage');
+  scale = Math.min((st.clientWidth - 40) / cv.width, (st.clientHeight - 84) / cv.height, 1);
   cv.style.width = `${cv.width * scale}px`;
   cv.style.height = `${cv.height * scale}px`;
 }
@@ -244,7 +473,7 @@ addEventListener('resize', fit);
 
 function pos(e) {
   const r = cv.getBoundingClientRect();
-  return { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale };
+  return { x: (e.clientX - r.left) / scale + origin.x, y: (e.clientY - r.top) / scale + origin.y };
 }
 
 function push(s) { shapes.push(s); redoStack = []; dirty = true; render(); }
@@ -255,14 +484,19 @@ cv.addEventListener('mousedown', e => {
   if (tool === 'text') { e.preventDefault(); openText(p); return; }
   commitText();
   if (tool === 'step') { push({ type: 'step', x: p.x, y: p.y, n: shapes.filter(s => s.type === 'step').length + 1, color, size: sizeMult }); return; }
+  if (tool === 'callout') {
+    drawing = { type: 'callout', tx: p.x, ty: p.y, bx: p.x, by: p.y, text: 'Text', style: calloutStyle, color, size: sizeMult };
+    return;
+  }
   drawing = tool === 'pen'
     ? { type: 'pen', pts: [[p.x, p.y]], color, size: sizeMult }
-    : { type: tool, x1: p.x, y1: p.y, x2: p.x, y2: p.y, color, size: sizeMult };
+    : { type: tool, x1: p.x, y1: p.y, x2: p.x, y2: p.y, color, size: sizeMult, style: tool === 'arrow' ? arrowStyle : undefined };
 });
 addEventListener('mousemove', e => {
   if (!drawing) return;
   const p = pos(e);
   if (drawing.type === 'pen') drawing.pts.push([p.x, p.y]);
+  else if (drawing.type === 'callout') { drawing.bx = p.x; drawing.by = p.y; }
   else {
     drawing.x2 = p.x; drawing.y2 = p.y;
     if (e.shiftKey && (drawing.type === 'rect' || drawing.type === 'ellipse')) {
@@ -277,6 +511,13 @@ addEventListener('mouseup', () => {
   if (!drawing) return;
   const d = drawing;
   drawing = null;
+  if (d.type === 'callout') {
+    // A plain click puts the bubble up and to the right of the point.
+    if (Math.hypot(d.bx - d.tx, d.by - d.ty) < 6) { d.bx = d.tx + unit() * 45; d.by = d.ty - unit() * 32; }
+    d.text = '';
+    openCallout(d);
+    return;
+  }
   const big = d.type === 'pen' ? d.pts.length > 1 : Math.hypot(d.x2 - d.x1, d.y2 - d.y1) > 3;
   if (big) push(d); else render();
 });
@@ -290,8 +531,8 @@ function openText(p) {
   const r = cv.getBoundingClientRect(), sr = $('stage').getBoundingClientRect();
   const fs = fontPx({ size: sizeMult }) * scale;
   Object.assign(txt.style, {
-    display: 'block', left: `${r.left - sr.left + p.x * scale}px`, top: `${r.top - sr.top + p.y * scale}px`,
-    fontSize: `${fs}px`, color, height: `${fs * 1.3}px`, width: '80px',
+    display: 'block', left: `${r.left - sr.left + (p.x - origin.x) * scale}px`, top: `${r.top - sr.top + (p.y - origin.y) * scale}px`,
+    fontSize: `${fs}px`, color, height: `${fs * 1.3}px`, width: '80px', lineHeight: '1.2', fontWeight: '700', background: '', border: '',
   });
   txt.value = '';
   setTimeout(() => txt.focus(), 0);
@@ -301,14 +542,53 @@ function autosize() {
   txt.style.width = `${Math.max(80, txt.scrollWidth + 8)}px`;
   txt.style.height = `${txt.scrollHeight}px`;
 }
-txt.addEventListener('input', autosize);
+txt.addEventListener('input', () => { if (!editingCallout) autosize(); });
 txt.addEventListener('keydown', e => {
   e.stopPropagation();
   if (e.key === 'Escape') { txt.value = ''; commitText(); }
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitText(); }
 });
 txt.addEventListener('blur', () => commitText());
+let editingCallout = null;
+function placeCalloutEditor() {
+  const s = editingCallout, b = calloutBox(s);
+  const r = cv.getBoundingClientRect(), sr = $('stage').getBoundingClientRect();
+  Object.assign(txt.style, {
+    left: `${r.left - sr.left + (b.tx - origin.x) * scale - 2}px`, top: `${r.top - sr.top + (b.ty - origin.y) * scale - 1}px`,
+    fontSize: `${b.fs * scale}px`, lineHeight: '1.25', fontWeight: '600', background: 'transparent', border: '0',
+    color: s.style === 'outline' || darkInk(s.color) ? '#0f172a' : '#ffffff',
+    width: `${b.tw * scale + 10}px`, height: `${b.lines.length * b.lh * scale + 4}px`,
+  });
+}
+function openCallout(s) {
+  commitText();
+  editingCallout = s;
+  shapes.push(s);
+  textAt = { callout: true };
+  txt.value = '';
+  txt.style.display = 'block';
+  render();
+  placeCalloutEditor();
+  setTimeout(() => txt.focus(), 0);
+}
+txt.addEventListener('input', () => {
+  if (!editingCallout) return;
+  editingCallout.text = txt.value;
+  render();
+  placeCalloutEditor();
+});
 function commitText() {
+  if (textAt?.callout) {
+    const s = editingCallout;
+    editingCallout = null;
+    textAt = null;
+    Object.assign(txt.style, { display: 'none', border: '', background: '' });
+    s.text = txt.value.replace(/\s+$/, '');
+    if (!s.text) shapes.splice(shapes.indexOf(s), 1);
+    else { redoStack = []; dirty = true; }
+    render();
+    return;
+  }
   if (!textAt) return;
   const t = txt.value.replace(/\s+$/, '');
   const at = textAt;
@@ -375,7 +655,7 @@ addEventListener('keydown', e => {
   if (mod && e.key.toLowerCase() === 'c') { e.preventDefault(); (item.kind === 'image' ? $('copy') : $('copyVid')).click(); return; }
   if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); $('saveAs').click(); return; }
   if (mod || item?.kind !== 'image') return;
-  const map = { a: 'arrow', r: 'rect', e: 'ellipse', h: 'highlight', p: 'pen', t: 'text', n: 'step', b: 'blur' };
+  const map = { a: 'arrow', c: 'callout', r: 'rect', e: 'ellipse', h: 'highlight', p: 'pen', t: 'text', n: 'step', b: 'blur' };
   if (map[e.key.toLowerCase()]) setTool(map[e.key.toLowerCase()]);
 });
 
@@ -393,6 +673,7 @@ listen('shared', e => {
     return;
   }
   document.body.classList.add(item.kind);
+  renderOpts();
   const when = new Date(item.created).toLocaleString();
   $('title').textContent = item.kind === 'image' ? 'Screenshot' : 'Screen recording';
   $('sub').textContent = `${item.width} × ${item.height}${item.kind === 'video' ? ` · ${fmtDuration(item.duration)}` : ''} · ${when}`;

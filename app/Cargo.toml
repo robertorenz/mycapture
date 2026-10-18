@@ -1,6 +1,6 @@
 [package]
 name = "mycapture"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Screen capture: screenshots, screen video with webcam, instant sharing"
 license = "MIT"
