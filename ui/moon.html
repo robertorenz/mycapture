@@ -16,14 +16,34 @@
   body.bottom #moon { left: calc(50% - 36px); bottom: -36px; }
   body.left #moon { top: calc(50% - 36px); left: -36px; }
   body.right #moon { top: calc(50% - 36px); right: -36px; }
-  #moon img {
-    width: 70px; height: 70px; pointer-events: none;
-    filter: drop-shadow(0 1px 2px rgba(15, 23, 42, .45)) drop-shadow(0 0 6px rgba(190, 220, 255, .6));
-    animation: shimmer 4s ease-in-out infinite;
+  /* Layers: fixed glow, a slowly turning surface, fixed lighting on top, twinkling sparkles. */
+  .orb {
+    position: relative; width: 70px; height: 70px; pointer-events: none;
+    filter: drop-shadow(0 1px 2px rgba(15, 23, 42, .45));
+    animation: shimmer 5s ease-in-out infinite;
     transition: transform .35s cubic-bezier(.3, 1.6, .5, 1);
   }
-  #moon:hover img, body.open #moon img { transform: scale(1.1); }
-  @keyframes shimmer { 50% { filter: drop-shadow(0 1px 2px rgba(15, 23, 42, .45)) drop-shadow(0 0 12px rgba(200, 228, 255, .95)) brightness(1.08); } }
+  .orb img { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .orb .surface { animation: turn 150s linear infinite; }
+  #moon:hover .orb, body.open #moon .orb { transform: scale(1.1); }
+  #moon:hover .surface, body.open #moon .surface { animation-duration: 40s; }
+  .spark {
+    position: absolute; width: 11px; height: 11px; color: #fff;
+    filter: drop-shadow(0 0 3px rgba(220, 236, 255, .95));
+    animation: twinkle 3.2s ease-in-out infinite;
+  }
+  .spark svg { width: 100%; height: 100%; display: block; }
+  .spark.s1 { right: 2px; top: 3px; }
+  .spark.s2 { left: 1px; bottom: 9px; width: 7px; height: 7px; animation-delay: -1.6s; animation-duration: 4.1s; }
+  .spark.s3 { right: 9px; bottom: 2px; width: 6px; height: 6px; animation-delay: -.7s; animation-duration: 5s; }
+  @keyframes turn { to { transform: rotate(360deg); } }
+  @keyframes twinkle {
+    0%, 100% { opacity: .25; transform: scale(.55) rotate(0deg); }
+    45% { opacity: 1; transform: scale(1) rotate(25deg); }
+    60% { opacity: .9; transform: scale(.9) rotate(30deg); }
+  }
+  @keyframes shimmer { 50% { filter: drop-shadow(0 1px 2px rgba(15, 23, 42, .45)) drop-shadow(0 0 7px rgba(200, 228, 255, .75)) brightness(1.06); } }
+  @media (prefers-reduced-motion: reduce) { .orb, .orb .surface, .spark { animation: none; } }
 
   .ray {
     position: absolute; width: 50px; height: 50px; margin: -25px 0 0 -25px;
@@ -48,7 +68,16 @@
 </head>
 <body class="top">
 <div id="stage">
-  <div id="moon"><img src="moon.png" alt="myCapture"></div>
+  <div id="moon">
+    <div class="orb" aria-label="myCapture">
+      <img src="moon-glow.png" alt="">
+      <img class="surface" src="moon-surface.png" alt="">
+      <img src="moon-light.png" alt="">
+      <span class="spark s1"><svg viewBox="0 0 20 20"><path fill="currentColor" d="M10 0l1.8 8.2L20 10l-8.2 1.8L10 20l-1.8-8.2L0 10l8.2-1.8z"/></svg></span>
+      <span class="spark s2"><svg viewBox="0 0 20 20"><path fill="currentColor" d="M10 0l1.8 8.2L20 10l-8.2 1.8L10 20l-1.8-8.2L0 10l8.2-1.8z"/></svg></span>
+      <span class="spark s3"><svg viewBox="0 0 20 20"><path fill="currentColor" d="M10 0l1.8 8.2L20 10l-8.2 1.8L10 20l-1.8-8.2L0 10l8.2-1.8z"/></svg></span>
+    </div>
+  </div>
 
   <div class="ray main" data-act="capture"><span data-icon="crosshair"></span><span class="lbl">Capture</span></div>
   <div class="ray main" data-act="history"><span data-icon="history"></span><span class="lbl">History</span></div>
