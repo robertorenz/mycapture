@@ -42,8 +42,10 @@ const check = (name, ok, extra = '') => { console.log(`${ok ? 'PASS' : 'FAIL'}  
 
   const box = await page.evaluate(() => {
     const v = document.getElementById('video').getBoundingClientRect(), s = document.getElementById('stage').getBoundingClientRect();
-    return { vTop: v.top, vBottom: v.bottom, sTop: s.top, sBottom: s.bottom };
+    return { vTop: v.top, vBottom: v.bottom, sTop: s.top, sBottom: s.bottom, vWidth: v.width, sWidth: s.width, win: innerWidth };
   });
+  check('preview area spans the window', box.sWidth >= box.win - 2, JSON.stringify(box));
+  check('video has a visible width', box.vWidth > box.sWidth / 2, JSON.stringify(box));
   check('video fits inside the preview area (controls visible)', box.vTop >= box.sTop && box.vBottom <= box.sBottom, JSON.stringify(box));
 
   await page.keyboard.press('Space');

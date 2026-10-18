@@ -2883,7 +2883,7 @@ checksum = "743fb55ba31b18fb1ecef6bdc9aa2743314978ac084044301a7eee33fb99a20d"
 
 [[package]]
 name = "mycapture"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -2910,7 +2910,7 @@ dependencies = [
 
 [[package]]
 name = "mycapture-server"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "axum",
  "rand 0.9.5",

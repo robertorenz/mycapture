@@ -80,6 +80,8 @@
   }
   footer .hint { color: var(--muted); font-size: 12px; margin-left: 6px; }
   body.video #tools { display: none; }
+  /* Without the tool column the stage would fall into the narrow auto column. */
+  body.video #stage { grid-column: 1 / -1; }
   body.video .img-only { display: none; }
   body.image .vid-only { display: none; }
 </style>
