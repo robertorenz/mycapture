@@ -1,0 +1,13 @@
+myCapture ships an unmodified FFmpeg binary (ffmpeg.exe) to record and convert video.
+
+FFmpeg is licensed under the GNU General Public License version 3 in this build
+(it includes x264, x265 and other GPL components). It runs as a separate program;
+myCapture itself is MIT licensed.
+
+  FFmpeg:          https://ffmpeg.org/
+  Build used:      https://github.com/BtbN/FFmpeg-Builds (win64-gpl)
+  Source code:     https://github.com/FFmpeg/FFmpeg and the component sources linked from the build repository
+  GPL v3 text:     https://www.gnu.org/licenses/gpl-3.0.html
+
+You can replace this ffmpeg.exe with any other build, or point myCapture at a
+different ffmpeg in Settings → Recording.

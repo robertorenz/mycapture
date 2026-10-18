@@ -1,5 +1,5 @@
 //! Screen video recording through ffmpeg, with pause/resume implemented as segments.
-use crate::{capture::Rect, history, settings::captures_dir, settings::Settings};
+use crate::{capture::Rect, codec, history, settings::captures_dir, settings::Settings};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -20,6 +20,8 @@ pub struct Recording {
     pub seg_started: Option<Instant>,
     pub elapsed: Duration,
     pub opened_camera: bool,
+    /// Output format id (see `codec::CODECS`), fixed when the recording starts.
+    pub codec: String,
 }
 
 impl Recording {
@@ -51,7 +53,9 @@ pub fn ffmpeg_version(s: &Settings) -> Result<String, String> {
         .arg("-version")
         .output()
         .map_err(|_| format!("ffmpeg was not found ({}). Install it or set its path in Settings.", s.ffmpeg()))?;
-    Ok(String::from_utf8_lossy(&out.stdout).lines().next().unwrap_or("ffmpeg").to_string())
+    let version = String::from_utf8_lossy(&out.stdout).lines().next().unwrap_or("ffmpeg").to_string();
+    let bundled = s.ffmpeg_path.trim().is_empty() && crate::settings::bundled_ffmpeg().is_some();
+    Ok(if bundled { format!("{version} (included with myCapture)") } else { version })
 }
 
 /// List microphones ffmpeg can open on this platform.
@@ -142,11 +146,11 @@ fn build_args(s: &Settings, r: &Recording, out: &Path) -> Vec<String> {
             a.extend(["-f".into(), "pulse".into(), "-i".into(), dev]);
         }
     }
-    if let Some(vf) = vf {
-        a.extend(["-vf".into(), vf]);
+    let filters: Vec<String> = vf.into_iter().chain(codec::scale_filter(s)).collect();
+    if !filters.is_empty() {
+        a.extend(["-vf".into(), filters.join(",")]);
     }
-    a.extend(["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p"].map(String::from));
-    a.extend(["-c:a", "aac", "-b:a", "128k"].map(String::from));
+    a.extend(codec::capture_args(codec::get(&r.codec), s));
     a.push(out.to_string_lossy().to_string());
     a
 }
@@ -226,7 +230,8 @@ pub fn finalize(s: &Settings, mut r: Recording) -> Result<history::Item, String>
         return Err("Nothing was recorded.".into());
     }
     let id = r.id.clone();
-    let file = format!("{id}.mp4");
+    let target = codec::get(&r.codec);
+    let file = format!("{id}.{}", target.ext);
     let dest = captures_dir().join(&file);
     // Join (or just remux) the segments into a web-friendly MP4.
     let list = work_dir(&id).join("list.txt");
@@ -235,10 +240,23 @@ pub fn finalize(s: &Settings, mut r: Recording) -> Result<history::Item, String>
         .map(|p| format!("file '{}'\n", p.to_string_lossy().replace('\\', "/").replace('\'', "'\\''")))
         .collect();
     std::fs::write(&list, body).map_err(|e| e.to_string())?;
-    let st = command(&s.ffmpeg())
-        .args(["-hide_banner", "-loglevel", "error", "-y", "-f", "concat", "-safe", "0", "-i"])
-        .arg(&list)
-        .args(["-c", "copy", "-movflags", "+faststart"])
+    let mut cmd = command(&s.ffmpeg());
+    cmd.args(["-hide_banner", "-loglevel", "error", "-y", "-f", "concat", "-safe", "0", "-i"]).arg(&list);
+    match target.mode {
+        codec::Mode::Direct => {
+            cmd.args(["-c", "copy"]);
+        }
+        codec::Mode::Transcode => {
+            cmd.args(codec::video_args(target, s)).args(codec::audio_args(target));
+        }
+        codec::Mode::Gif => {
+            cmd.args(["-filter_complex", &codec::gif_filter(s), "-loop", "0"]).args(codec::audio_args(target));
+        }
+    }
+    if target.ext == "mp4" {
+        cmd.args(["-movflags", "+faststart"]);
+    }
+    let st = cmd
         .arg(&dest)
         .stdin(Stdio::null())
         .status()

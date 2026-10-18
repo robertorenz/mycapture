@@ -42,7 +42,7 @@
 <script>
 hydrateIcons();
 const $ = id => document.getElementById(id);
-let state = 'countdown', busy = false;
+let state = 'countdown', busy = false, converting = false;
 
 function setState(s) {
   state = s;
@@ -65,7 +65,7 @@ async function finish() {
   if (busy || !(state === 'live' || state === 'paused')) return;
   busy = true;
   setState('saving');
-  $('time').textContent = 'Saving…';
+  $('time').textContent = converting ? 'Converting…' : 'Saving…';
   try { await invoke('record_stop'); }
   catch (err) { busy = false; Modal.error('Recording failed', err); }
 }
@@ -89,6 +89,7 @@ addEventListener('keydown', e => { if (e.key === 'Escape') invoke('record_cancel
 
 (async () => {
   const st = await invoke('record_status');
+  converting = st.converts;
   $('mic').classList.toggle('on', st.mic);
   $('mic').title = st.mic ? 'Microphone on' : 'Microphone off';
   $('cam').classList.toggle('on', st.camera);

@@ -69,6 +69,10 @@
         <div class="ctl"><label class="switch"><input type="checkbox" data-k="show_moon"><span></span></label></div>
       </div>
       <div class="row">
+        <div class="lab"><b>Start when I sign in</b><span>Keep the moon ready, like the original Jing.</span></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" data-k="start_at_login"><span></span></label></div>
+      </div>
+      <div class="row">
         <div class="lab"><b>After a screenshot</b><span>Put something on the clipboard automatically.</span></div>
         <div class="ctl">
           <select data-k="auto_copy">
@@ -90,9 +94,36 @@
     <p>Screen video is encoded by ffmpeg into MP4 (H.264 + AAC), which plays everywhere.</p>
     <div class="card">
       <div class="row stack">
-        <div class="lab"><b>ffmpeg</b><span>Leave empty to use ffmpeg from your PATH, or point to ffmpeg(.exe).</span></div>
+        <div class="lab"><b>ffmpeg</b><span>Leave empty to use the copy included with myCapture (or the one on your PATH), or point to your own ffmpeg.</span></div>
         <div class="ctl"><input type="text" data-k="ffmpeg_path" placeholder="ffmpeg"><button class="btn" id="checkFf">Check</button></div>
         <div class="status" id="ffStatus"></div>
+      </div>
+      <div class="row">
+        <div class="lab"><b>Format</b><span id="codecDesc">How videos are encoded.</span></div>
+        <div class="ctl"><select data-k="video_codec" id="codec"><option value="h264">H.264 MP4</option></select></div>
+      </div>
+      <div class="row">
+        <div class="lab"><b>Quality</b><span>Smaller files trade a little sharpness for size.</span></div>
+        <div class="ctl">
+          <select data-k="video_quality">
+            <option value="small">Smaller file</option><option value="balanced">Balanced</option><option value="high">Best quality</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="lab"><b>Max resolution</b><span>Scale big screens down to save space.</span></div>
+        <div class="ctl">
+          <select data-k="max_height" data-num>
+            <option value="0">Original size</option><option value="1440">1440p</option><option value="1080">1080p</option>
+            <option value="720">720p</option><option value="480">480p</option>
+          </select>
+        </div>
+      </div>
+      <div class="row" id="gifRow">
+        <div class="lab"><b>GIF frame rate</b><span>Lower keeps GIFs small. They're capped at 720p.</span></div>
+        <div class="ctl">
+          <select data-k="gif_fps" data-num><option value="8">8 fps</option><option value="12">12 fps</option><option value="15">15 fps</option><option value="24">24 fps</option></select>
+        </div>
       </div>
       <div class="row">
         <div class="lab"><b>Frame rate</b><span>Higher is smoother but makes bigger files.</span></div>
@@ -184,7 +215,7 @@
     <h2>About myCapture</h2>
     <p>A tribute to TechSmith's classic Jing — the launcher, quick captures, quick sharing.</p>
     <div class="card">
-      <div class="row"><div class="lab"><b>Version</b><span>0.1.1</span></div></div>
+      <div class="row"><div class="lab"><b>Version</b><span>0.2.0</span></div></div>
       <div class="row"><div class="lab"><b>Built with</b><span>Rust, Tauri 2, xcap, ffmpeg</span></div></div>
       <div class="row"><div class="lab"><b>Tips</b><span>Click a window to grab it whole · drag the moon to move it · Enter = image, V = video in the capture screen.</span></div></div>
     </div>
@@ -219,7 +250,7 @@ function fill() {
   document.querySelectorAll('[data-k]').forEach(el => {
     const v = get(S, el.dataset.k);
     if (el.type === 'checkbox') el.checked = !!v;
-    else if (el.id === 'mic') return;
+    else if (el.id === 'mic' || el.id === 'codec') return;
     else el.value = v ?? '';
   });
   $('hotkey').value = S.hotkey;
@@ -236,6 +267,24 @@ function collect() {
   S.hotkey = $('hotkey').value;
   return S;
 }
+
+let codecs = [];
+async function loadCodecs() {
+  const sel = $('codec');
+  codecs = await invoke('list_codecs');
+  const groups = [...new Set(codecs.map(c => c.group))];
+  sel.innerHTML = groups.map(g => `<optgroup label="${esc(g)}">${codecs.filter(c => c.group === g).map(c =>
+    `<option value="${c.id}" ${c.available ? '' : 'disabled'}>${esc(c.label)}${c.available ? '' : ' (not available)'}</option>`).join('')}</optgroup>`).join('');
+  const cur = codecs.find(c => c.id === S.video_codec && c.available) ? S.video_codec : 'h264';
+  sel.value = cur;
+  codecChanged();
+}
+function codecChanged() {
+  const c = codecs.find(x => x.id === $('codec').value);
+  $('codecDesc').textContent = c ? c.desc : 'How videos are encoded.';
+  $('gifRow').style.display = $('codec').value === 'gif' ? 'flex' : 'none';
+}
+$('codec').addEventListener('change', codecChanged);
 
 async function loadMics() {
   const sel = $('mic');
@@ -281,7 +330,7 @@ $('checkFf').onclick = async () => {
   const st = $('ffStatus');
   st.className = 'status';
   st.textContent = 'Checking…';
-  try { st.textContent = await invoke('check_ffmpeg'); st.className = 'status ok'; loadMics(); }
+  try { st.textContent = await invoke('check_ffmpeg'); st.className = 'status ok'; loadMics(); loadCodecs(); }
   catch (err) { st.textContent = err; st.className = 'status err'; }
 };
 $('refreshMic').onclick = loadMics;
@@ -312,6 +361,7 @@ $('close').onclick = () => currentWindow().close();
   S = await invoke('get_settings');
   fill();
   loadMics();
+  loadCodecs();
   invoke('check_ffmpeg').then(v => { $('ffStatus').textContent = v; $('ffStatus').className = 'status ok'; })
     .catch(err => { $('ffStatus').textContent = err; $('ffStatus').className = 'status err'; });
 })();

@@ -58,9 +58,18 @@ pub struct Settings {
     pub camera_size: u32,
     pub camera_shape: String,
     pub countdown: u32,
+    /// Output format id, see `codec::CODECS`.
+    pub video_codec: String,
+    /// "small" | "balanced" | "high"
+    pub video_quality: String,
+    /// Downscale recordings taller than this (0 = keep original size).
+    pub max_height: u32,
+    pub gif_fps: u32,
     /// What to put on the clipboard right after a screenshot: "none" | "image" | "link"
     pub auto_copy: String,
     pub show_moon: bool,
+    /// Launch myCapture when the user signs in.
+    pub start_at_login: bool,
     /// Screen edge the moon docks to: "top" | "bottom" | "left" | "right"
     pub moon_edge: String,
     /// Last drop point of the moon (physical px); picks the monitor and the spot along the edge.
@@ -81,8 +90,13 @@ impl Default for Settings {
             camera_size: 220,
             camera_shape: "circle".into(),
             countdown: 3,
+            video_codec: "h264".into(),
+            video_quality: "balanced".into(),
+            max_height: 0,
+            gif_fps: 12,
             auto_copy: "image".into(),
             show_moon: true,
+            start_at_login: true,
             moon_edge: "top".into(),
             moon_x: None,
             moon_y: None,
@@ -116,11 +130,21 @@ impl Settings {
         std::fs::write(config_dir().join("settings.json"), s).map_err(|e| e.to_string())
     }
 
+    /// ffmpeg to run: the configured path, else the copy shipped with the installer, else PATH.
     pub fn ffmpeg(&self) -> String {
-        if self.ffmpeg_path.trim().is_empty() {
-            "ffmpeg".into()
-        } else {
-            self.ffmpeg_path.trim().into()
+        if !self.ffmpeg_path.trim().is_empty() {
+            return self.ffmpeg_path.trim().into();
         }
+        bundled_ffmpeg().unwrap_or_else(|| "ffmpeg".into())
     }
+}
+
+pub fn bundled_ffmpeg() -> Option<String> {
+    let exe = std::env::current_exe().ok()?;
+    let dir = exe.parent()?;
+    let name = if cfg!(windows) { "ffmpeg.exe" } else { "ffmpeg" };
+    [dir.join(name), dir.join("resources").join(name), dir.join("../Resources").join(name)]
+        .into_iter()
+        .find(|p| p.is_file())
+        .map(|p| p.to_string_lossy().to_string())
 }

@@ -1,5 +1,6 @@
 mod capture;
 mod clip;
+mod codec;
 mod history;
 mod record;
 mod settings;
@@ -16,6 +17,7 @@ use tauri::{
     WebviewWindowBuilder,
 };
 use tauri::webview::{PermissionKind, PermissionResponse};
+use tauri_plugin_autostart::ManagerExt as _;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use tauri_plugin_opener::OpenerExt;
@@ -277,6 +279,7 @@ fn start_video(app: AppHandle, rect: Rect) -> Result<(), String> {
         seg_started: None,
         elapsed: Default::default(),
         opened_camera,
+        codec: s.video_codec.clone(),
     });
     Ok(())
 }
@@ -289,6 +292,8 @@ struct RecStatus {
     countdown: u32,
     mic: bool,
     camera: bool,
+    /// The format needs converting when the recording finishes.
+    converts: bool,
 }
 
 #[tauri::command]
@@ -303,6 +308,7 @@ fn record_status(app: AppHandle) -> RecStatus {
         countdown: s.countdown.min(10),
         mic: s.record_mic,
         camera: app.get_webview_window("camera").is_some(),
+        converts: rec.as_ref().map(|r| codec::get(&r.codec).mode != codec::Mode::Direct).unwrap_or(false),
     }
 }
 
@@ -576,12 +582,18 @@ async fn share(app: AppHandle, id: String) -> Result<String, String> {
 #[tauri::command(async)]
 fn save_as(app: AppHandle, id: String) -> Result<bool, String> {
     let it = history::get(&id)?;
-    let ext = if it.kind == "image" { "png" } else { "mp4" };
+    let ext = it.file.rsplit('.').next().unwrap_or("png").to_ascii_lowercase();
+    let label = match ext.as_str() {
+        "png" => "PNG image",
+        "gif" => "Animated GIF",
+        "webm" => "WebM video",
+        _ => "MP4 video",
+    };
     let picked = app
         .dialog()
         .file()
         .set_file_name(&it.file)
-        .add_filter(if ext == "png" { "PNG image" } else { "MP4 video" }, &[ext])
+        .add_filter(label, &[ext.as_str()])
         .blocking_save_file();
     let Some(dest) = picked else { return Ok(false) };
     let dest = dest.into_path().map_err(|e| e.to_string())?;
@@ -653,6 +665,9 @@ fn set_settings(app: AppHandle, settings: Settings) -> Result<(), String> {
     if new.hotkey != old.hotkey {
         register_hotkey(&app)?;
     }
+    if new.start_at_login != old.start_at_login {
+        sync_autostart(&app);
+    }
     if let Some(moon) = app.get_webview_window("moon") {
         let _ = if new.show_moon { moon.show() } else { moon.hide() };
     }
@@ -662,6 +677,11 @@ fn set_settings(app: AppHandle, settings: Settings) -> Result<(), String> {
 #[tauri::command(async)]
 fn check_ffmpeg(app: AppHandle) -> Result<String, String> {
     record::ffmpeg_version(&settings_of(&app))
+}
+
+#[tauri::command(async)]
+fn list_codecs(app: AppHandle) -> Vec<codec::CodecInfo> {
+    codec::available(&settings_of(&app))
 }
 
 #[tauri::command(async)]
@@ -682,6 +702,18 @@ async fn test_upload(app: AppHandle) -> Result<String, String> {
 fn quit(app: AppHandle) {
     abort_recording(&app);
     app.exit(0);
+}
+
+/// Make the OS login item match the setting (only for installed builds, not `cargo run`).
+fn sync_autostart(app: &AppHandle) {
+    if cfg!(debug_assertions) {
+        return;
+    }
+    let al = app.autolaunch();
+    let want = settings_of(app).start_at_login;
+    if al.is_enabled().unwrap_or(false) != want {
+        let _ = if want { al.enable() } else { al.disable() };
+    }
 }
 
 fn register_hotkey(app: &AppHandle) -> Result<(), String> {
@@ -725,6 +757,8 @@ fn serve_inner(app: &AppHandle, req: &tauri::http::Request<Vec<u8>>) -> tauri::h
         "png" => "image/png",
         "jpg" => "image/jpeg",
         "mp4" => "video/mp4",
+        "webm" => "video/webm",
+        "gif" => "image/gif",
         _ => "application/octet-stream",
     };
     // Range requests so <video> can seek.
@@ -818,6 +852,12 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // A second launch (e.g. from the Start menu) just brings up History.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            show_moon(app);
+            let _ = open_page(app, "history", "history.html", "myCapture — History", 1040.0, 720.0);
+        }))
+        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, ev| {
@@ -876,6 +916,7 @@ pub fn run() {
             set_settings,
             check_ffmpeg,
             list_mics,
+            list_codecs,
             test_upload,
             quit
         ])
@@ -886,6 +927,7 @@ pub fn run() {
                 eprintln!("{e}");
             }
             layout_moon(&handle, false);
+            sync_autostart(&handle);
             show_moon(&handle);
             Ok(())
         })

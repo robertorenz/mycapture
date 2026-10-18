@@ -112,6 +112,7 @@
 <main id="stage">
   <canvas id="canvas" class="img-only"></canvas>
   <video id="video" class="vid-only" controls></video>
+  <img id="gif" class="vid-only" alt="" style="display:none;max-width:100%;max-height:100%;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.55)">
   <textarea id="txt" rows="1" spellcheck="false"></textarea>
   <div id="opts"></div>
 </main>
@@ -683,7 +684,14 @@ listen('shared', e => {
     base.onload = () => { cv.width = base.naturalWidth; cv.height = base.naturalHeight; fit(); render(); };
     base.src = fileUrl(item.file);
   } else {
-    $('video').src = fileUrl(item.file);
+    if (/\.gif$/i.test(item.file)) {
+      $('video').style.display = 'none';
+      $('gif').style.display = 'block';
+      $('gif').src = fileUrl(item.file);
+      $('title').textContent = 'Animated GIF';
+    } else {
+      $('video').src = fileUrl(item.file);
+    }
   }
 })();
 </script>

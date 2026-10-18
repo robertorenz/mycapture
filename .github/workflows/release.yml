@@ -70,9 +70,19 @@ jobs:
         with:
           tool: tauri-cli@2
 
+      - name: Fetch ffmpeg to ship inside the Windows installer
+        if: runner.os == 'Windows'
+        run: |
+          curl -sSL -o ffmpeg.zip https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-win64-gpl-8.1.zip
+          7z e ffmpeg.zip -oapp/bin "*/bin/ffmpeg.exe" -y
+          app/bin/ffmpeg.exe -version | head -1
+
       - name: Build installers
         working-directory: app
-        run: cargo tauri build --target ${{ matrix.target }}
+        run: |
+          EXTRA=""
+          [ "$RUNNER_OS" = "Windows" ] && EXTRA="--config tauri.ffmpeg.conf.json"
+          cargo tauri build --target ${{ matrix.target }} $EXTRA
 
       - name: Build server
         run: cargo build --release -p mycapture-server --target ${{ matrix.target }}

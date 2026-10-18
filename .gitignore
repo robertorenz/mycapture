@@ -2,3 +2,4 @@ target/
 *.log
 server/data/
 app/gen/
+app/bin/ffmpeg.exe

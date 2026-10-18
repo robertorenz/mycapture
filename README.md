@@ -10,14 +10,22 @@ A shiny little moon peeks out from the edge of your screen, half showing. Hover 
 
 - **Screenshots**: freeze the screen, drag an area or click a window to grab it, then fine-tune with resize handles and a magnifier.
 - **Annotate**: Snagit-style arrows (classic, double, curved, block, tapered, dashed, pointer, line) and callouts (filled bubble, outlined bubble, square label, speech balloon), plus boxes, ellipses, highlighter, pen, text, numbered steps and pixelate, with undo and redo. If an arrow or callout goes past the edge of the screenshot, the canvas grows to fit it.
-- **Screen video**: record any area to MP4 (H.264 at CRF 23 + AAC 128 kbps, so roughly 5–15 MB per minute of desktop work) with your microphone. Recordings are written as crash-safe MKV segments and joined into the MP4 when you finish. You can pause, resume, finish or discard, and there is a countdown before it starts.
+- **Screen video**: record any area with your microphone. The format is your choice: **H.264 MP4** (default; H.264 at CRF 23 + AAC 128 kbps, so roughly 5–15 MB per minute of desktop work), **H.265/HEVC**, **AV1**, **VP9 WebM** or **animated GIF**. GPU encoding (NVIDIA NVENC, Intel Quick Sync, AMD AMF, Apple VideoToolbox) is also available, along with Smaller / Balanced / Best quality and a maximum resolution. Only formats your ffmpeg can actually produce are offered. Recordings are written as crash-safe MKV segments and joined into the MP4 when you finish. You can pause, resume, finish or discard, and there is a countdown before it starts.
 - **Webcam bubble**: puts your camera in a corner of the recorded area. It can be a circle or a rounded square, you can resize it, and you can drag it anywhere. It is recorded along with the screen.
 - **Paste anywhere**: screenshots go to the clipboard as images, and videos and images can be copied as files. Paste them straight into WhatsApp, Teams, Slack, email and so on.
 - **Share links**: upload to the bundled self-hosted server, to S3-compatible storage (Cloudflare R2, AWS S3, Backblaze B2, MinIO) or to any multipart upload endpoint. The link is copied to your clipboard.
 - **History** of every capture, with copy, share and delete.
 - Global hotkey (default `Ctrl/⌘+Shift+J`), a tray icon, and a dockable moon you can drag to the top, bottom, left or right edge of any monitor.
 
-## Requirements
+## Install
+
+Download the installer for your platform from [Releases](https://github.com/robertorenz/mycapture/releases):
+
+- **Windows**: `myCapture_x.y.z_x64-setup.exe`. It installs per user (no admin rights needed), includes ffmpeg, adds a Start-menu shortcut and an uninstaller, and can start myCapture when you sign in. An `.msi` is available for managed deployment.
+- **macOS**: `.dmg` for Apple Silicon or Intel. Install ffmpeg with `brew install ffmpeg`.
+- **Linux**: `.deb` (pulls in ffmpeg), `.rpm` or `.AppImage`.
+
+## Requirements (building from source)
 
 - Rust (stable).
 - **ffmpeg**, for video recording. It must be on your `PATH`, or you can set its path in Settings → Recording.
@@ -43,6 +51,10 @@ To build installers (`.msi`/`.exe`, `.dmg`/`.app`, `.deb`/`.AppImage`), install 
 cargo install tauri-cli --version "^2"
 cd app && cargo tauri build
 ```
+
+To ship ffmpeg inside the Windows installer, as the release workflow does, put `ffmpeg.exe` in `app/bin/` and build with `cargo tauri build --config tauri.ffmpeg.conf.json`.
+
+To cut a release, bump the version in `app/tauri.conf.json` and both `Cargo.toml` files, then push a tag such as `v0.2.0`. GitHub Actions builds every installer and attaches it to a draft release.
 
 GitHub Actions builds the app and the server on all three platforms on every push.
 

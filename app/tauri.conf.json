@@ -1,13 +1,17 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "myCapture",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "identifier": "com.mycapture.app",
-  "build": { "frontendDist": "../ui" },
+  "build": {
+    "frontendDist": "../ui"
+  },
   "app": {
     "withGlobalTauri": true,
     "macOSPrivateApi": true,
-    "security": { "csp": null },
+    "security": {
+      "csp": null
+    },
     "windows": [
       {
         "label": "moon",
@@ -31,9 +35,44 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
-    "macOS": { "infoPlist": "Info.plist", "signingIdentity": "-" },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "infoPlist": "Info.plist",
+      "signingIdentity": "-"
+    },
     "shortDescription": "Jing-style screen capture",
-    "category": "Productivity"
+    "category": "Productivity",
+    "publisher": "Roberto Renz",
+    "copyright": "Copyright © 2026 Roberto Renz. MIT License.",
+    "homepage": "https://github.com/robertorenz/mycapture",
+    "licenseFile": "../LICENSE",
+    "longDescription": "Screenshots with annotations, screen video with your webcam, and instant copy or share links, launched from a little moon on the edge of your screen.",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "installer/nsis-header.bmp",
+        "sidebarImage": "installer/nsis-sidebar.bmp",
+        "startMenuFolder": "myCapture",
+        "displayLanguageSelector": false
+      },
+      "wix": {
+        "bannerPath": "installer/wix-banner.bmp",
+        "dialogImagePath": "installer/wix-dialog.bmp"
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": [
+          "ffmpeg"
+        ]
+      }
+    }
   }
 }

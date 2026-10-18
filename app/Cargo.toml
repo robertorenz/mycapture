@@ -1,6 +1,6 @@
 [package]
 name = "mycapture"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 description = "Screen capture: screenshots, screen video with webcam, instant sharing"
 license = "MIT"
@@ -17,6 +17,8 @@ tauri = { version = "2", features = ["tray-icon", "image-png", "macos-private-ap
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-single-instance = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 xcap = "0.9"
