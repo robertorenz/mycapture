@@ -8,7 +8,7 @@ A shiny little moon peeks out from the edge of your screen, half showing. Hover 
 
 ## Features
 
-- **Screenshots**: freeze the screen, drag an area or click a window to grab it, then fine-tune with resize handles and a magnifier.
+- **Screenshots**: every monitor freezes at once, so you can drag an area or click a window on any screen, then fine-tune the selection with resize handles and a magnifier.
 - **Annotate**: Snagit-style arrows (classic, double, curved, block, tapered, dashed, pointer, line) and callouts (filled bubble, outlined bubble, square label, speech balloon), plus boxes, ellipses, highlighter, pen, text, numbered steps and pixelate, with undo and redo. If an arrow or callout goes past the edge of the screenshot, the canvas grows to fit it.
 - **Screen video**: record any area with your microphone. The format is your choice: **H.264 MP4** (default; H.264 at CRF 23 + AAC 128 kbps, so roughly 5–15 MB per minute of desktop work), **H.265/HEVC**, **AV1**, **VP9 WebM** or **animated GIF**. GPU encoding (NVIDIA NVENC, Intel Quick Sync, AMD AMF, Apple VideoToolbox) is also available, along with Smaller / Balanced / Best quality and a maximum resolution. Only formats your ffmpeg can actually produce are offered. Recordings are written as crash-safe MKV segments and joined into the MP4 when you finish. You can pause, resume, finish or discard, and there is a countdown before it starts.
 - **Webcam bubble**: puts your camera in a corner of the recorded area. It can be a circle or a rounded square, you can resize it, and you can drag it anywhere. It is recorded along with the screen.
@@ -81,6 +81,9 @@ To connect the app, open Settings → Sharing, choose **myCapture server**, and 
 | `MYCAPTURE_MAX_MB` | `1024` | Upload size limit |
 
 ## Using it
+
+Run `mycapture --capture` to start a capture from a script, a Stream Deck or a custom shortcut. If myCapture is already running, the running copy does the capture.
+
 
 | Where | Action |
 | --- | --- |

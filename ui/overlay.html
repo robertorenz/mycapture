@@ -173,8 +173,10 @@ const CURSORS = { nw: 'nwse-resize', se: 'nwse-resize', ne: 'nesw-resize', sw: '
 
 cv.addEventListener('mousedown', e => {
   if (e.button !== 0 || mode === 'busy') return;
+  currentWindow().setFocus();
   const p = { x: e.clientX, y: e.clientY };
   hint.style.opacity = '0';
+  TAURI.event.emit('overlay-active', myLabel);
   if (mode === 'selected') {
     const h = handleAt(p);
     if (h) { mode = 'resizing'; grab = { h, p, r: { ...sel } }; return; }
@@ -266,6 +268,23 @@ window.addEventListener('keydown', e => {
 
 window.addEventListener('resize', resize);
 
+// One overlay per monitor: starting a selection here clears the others.
+const myLabel = currentWindow().label;
+const myIndex = myLabel.replace('overlay-', '');
+listen('overlay-active', e => {
+  if (e.payload === myLabel || mode === 'busy') return;
+  sel = null;
+  mode = 'hover';
+  hint.style.opacity = '0';
+  draw();
+});
+document.documentElement.addEventListener('mouseleave', () => {
+  if (mode !== 'hover') return;
+  cur = { x: -100, y: -100 };
+  hoverRect = null;
+  draw();
+});
+
 (async () => {
   try {
     info = await invoke('overlay_info');
@@ -277,10 +296,10 @@ window.addEventListener('resize', resize);
     resize();
     const w = currentWindow();
     await w.show();
-    await w.setFocus();
+    if (await invoke('overlay_wants_focus')) await w.setFocus();
   };
   img.onerror = () => invoke('cancel_capture');
-  img.src = `${CAP_BASE}/frame?t=${Date.now()}`;
+  img.src = `${CAP_BASE}/frame/${myIndex}?t=${Date.now()}`;
 })();
 </script>
 </body>

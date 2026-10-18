@@ -24,7 +24,8 @@ use tauri_plugin_opener::OpenerExt;
 
 pub struct AppState {
     pub settings: Mutex<Settings>,
-    pub pending: Mutex<Option<capture::Pending>>,
+    /// Frozen monitors while the capture overlays are open (empty otherwise).
+    pub pending: Mutex<Vec<capture::Pending>>,
     pub rec: Mutex<Option<record::Recording>>,
     /// Whether the moon's menu is fanned out.
     pub moon: Mutex<bool>,
@@ -154,20 +155,30 @@ fn begin_capture(app: AppHandle) {
 }
 
 #[tauri::command]
-fn overlay_info(app: AppHandle) -> Result<capture::OverlayInfo, String> {
-    capture::info(&app)
+fn overlay_info(app: AppHandle, window: WebviewWindow) -> Result<capture::OverlayInfo, String> {
+    capture::info(&app, overlay_of(&window)?)
+}
+
+fn overlay_of(window: &WebviewWindow) -> Result<usize, String> {
+    capture::overlay_index(window.label()).ok_or_else(|| "Not a capture window".to_string())
+}
+
+/// The overlay on the monitor under the mouse takes keyboard focus when it appears.
+#[tauri::command]
+fn overlay_wants_focus(app: AppHandle, window: WebviewWindow) -> bool {
+    overlay_of(&window).map(|i| capture::under_cursor(&app, i)).unwrap_or(false)
 }
 
 #[tauri::command]
 fn cancel_capture(app: AppHandle) {
-    app.state::<AppState>().pending.lock().unwrap().take();
+    app.state::<AppState>().pending.lock().unwrap().clear();
     capture::close_overlay(&app);
     show_moon(&app);
 }
 
 #[tauri::command(async)]
-async fn finish_image(app: AppHandle, rect: Rect) -> Result<(), String> {
-    let item = capture::finish_image(&app, rect)?;
+async fn finish_image(app: AppHandle, window: WebviewWindow, rect: Rect) -> Result<(), String> {
+    let item = capture::finish_image(&app, overlay_of(&window)?, rect)?;
     show_moon(&app);
     notify_history(&app);
     let s = settings_of(&app);
@@ -195,10 +206,9 @@ async fn finish_image(app: AppHandle, rect: Rect) -> Result<(), String> {
 // ---------- recording ----------
 
 #[tauri::command(async)]
-fn start_video(app: AppHandle, rect: Rect) -> Result<(), String> {
+fn start_video(app: AppHandle, window: WebviewWindow, rect: Rect) -> Result<(), String> {
     let state = app.state::<AppState>();
-    let p = state.pending.lock().unwrap().take().ok_or("No capture in progress")?;
-    capture::close_overlay(&app);
+    let p = capture::take(&app, overlay_of(&window)?)?;
     let (iw, ih) = (p.image.width() as i32, p.image.height() as i32);
     let mut r = rect;
     r.x = r.x.clamp(0, iw - 2);
@@ -740,8 +750,8 @@ fn serve_inner(app: &AppHandle, req: &tauri::http::Request<Vec<u8>>) -> tauri::h
     use tauri::http::{header, Response, StatusCode};
     let not_found = || Response::builder().status(StatusCode::NOT_FOUND).body(Vec::new()).unwrap();
     let path = req.uri().path();
-    if path == "/frame" {
-        return match capture::frame_png(app) {
+    if let Some(idx) = path.strip_prefix("/frame/").and_then(|i| i.parse::<usize>().ok()) {
+        return match capture::frame_png(app, idx) {
             Some(png) => Response::builder().header(header::CONTENT_TYPE, "image/png").body(png).unwrap(),
             None => not_found(),
         };
@@ -851,12 +861,22 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        // A second launch (e.g. from the Start menu) just brings up History.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            show_moon(app);
-            let _ = open_page(app, "history", "history.html", "myCapture — History", 1040.0, 720.0);
-        }))
+    let builder = tauri::Builder::default();
+    // A second launch brings up History, or starts a capture with `--capture`.
+    // Development builds skip this so they can run next to an installed copy.
+    #[cfg(not(debug_assertions))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+        if args.iter().any(|a| a == "--capture") {
+            spawn_capture(app);
+            return;
+        }
+        show_moon(app);
+        let app = app.clone();
+        std::thread::spawn(move || {
+            let _ = open_page(&app, "history", "history.html", "myCapture — History", 1040.0, 720.0);
+        });
+    }));
+    builder
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -871,7 +891,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
             settings: Mutex::new(Settings::load()),
-            pending: Mutex::new(None),
+            pending: Mutex::new(Vec::new()),
             rec: Mutex::new(None),
             moon: Mutex::new(false),
             moon_drag: Mutex::new(None),
@@ -883,6 +903,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             begin_capture,
             overlay_info,
+            overlay_wants_focus,
             cancel_capture,
             finish_image,
             start_video,
@@ -928,6 +949,9 @@ pub fn run() {
             }
             layout_moon(&handle, false);
             sync_autostart(&handle);
+            if std::env::args().any(|a| a == "--capture") {
+                spawn_capture(&handle);
+            }
             show_moon(&handle);
             Ok(())
         })
