@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>myCapture capture</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  html, body { background: #000; overflow: hidden; cursor: crosshair; }
+  canvas#c { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+  #mag {
+    position: fixed; width: 132px; height: 132px; border-radius: 50%; overflow: hidden; pointer-events: none;
+    border: 2px solid rgba(251, 191, 36, .95); box-shadow: 0 8px 24px rgba(0, 0, 0, .55); display: none; background: #000;
+  }
+  #mag canvas { width: 132px; height: 132px; image-rendering: pixelated; }
+  #magInfo {
+    position: fixed; pointer-events: none; display: none; padding: 3px 8px; border-radius: 6px;
+    background: rgba(11, 18, 32, .92); border: 1px solid var(--line); font: 600 11.5px ui-monospace, Consolas, monospace; color: #fde68a;
+  }
+  #hint {
+    position: fixed; top: 18px; left: 50%; transform: translateX(-50%); pointer-events: none;
+    padding: 9px 16px; border-radius: 10px; background: rgba(11, 18, 32, .9); border: 1px solid var(--line);
+    color: var(--text); font-weight: 500; box-shadow: var(--shadow); transition: opacity .2s; white-space: nowrap;
+  }
+  #hint kbd { font: 600 11px ui-monospace, Consolas, monospace; background: #1d2a46; border: 1px solid #34446a; border-radius: 4px; padding: 1px 5px; margin: 0 2px; }
+  #bar {
+    position: fixed; display: none; gap: 6px; padding: 6px; border-radius: 12px; cursor: default;
+    background: rgba(11, 18, 32, .96); border: 1px solid var(--line); box-shadow: var(--shadow); align-items: center;
+  }
+  #bar .btn { height: 38px; }
+  #bar .size { padding: 0 10px 0 6px; font: 600 12px ui-monospace, Consolas, monospace; color: var(--muted); }
+  #bar .sep { width: 1px; height: 26px; background: var(--line); margin: 0 2px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="mag"><canvas id="magc" width="132" height="132"></canvas></div>
+<div id="magInfo"></div>
+<div id="hint">Drag to select an area · click to grab a window · <kbd>Esc</kbd> to cancel</div>
+<div id="bar">
+  <span class="size" id="size"></span>
+  <button class="btn primary" id="bImage" title="Screenshot (Enter)" data-icon="camera">Image</button>
+  <button class="btn" id="bVideo" title="Record video of this area" data-icon="video">Video</button>
+  <span class="sep"></span>
+  <button class="btn icon ghost" id="bRedo" title="Select again" data-icon="redo"></button>
+  <button class="btn icon ghost danger" id="bCancel" title="Cancel (Esc)" data-icon="x"></button>
+</div>
+<script src="shared.js"></script>
+<script>
+hydrateIcons();
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const mag = document.getElementById('mag'), magc = document.getElementById('magc').getContext('2d'), magInfo = document.getElementById('magInfo');
+const bar = document.getElementById('bar'), hint = document.getElementById('hint');
+const img = new Image();
+let info = null, fx = 1, dpr = 1;
+let mode = 'hover';           // hover | pending | drawing | selected | moving | resizing | busy
+let sel = null, hoverRect = null, start = null, cur = { x: -100, y: -100 }, grab = null;
+const H = 7;                  // handle half-size (css px)
+
+const toImg = r => ({ x: Math.round(r.x * fx), y: Math.round(r.y * fx), w: Math.round(r.w * fx), h: Math.round(r.h * fx) });
+const norm = (a, b) => ({ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(a.x - b.x), h: Math.abs(a.y - b.y) });
+const inside = (p, r) => r && p.x >= r.x && p.y >= r.y && p.x <= r.x + r.w && p.y <= r.y + r.h;
+
+function resize() {
+  dpr = devicePixelRatio || 1;
+  cv.width = Math.round(innerWidth * dpr);
+  cv.height = Math.round(innerHeight * dpr);
+  if (info) fx = info.width / innerWidth;
+  draw();
+}
+
+function handles(r) {
+  const xs = [r.x, r.x + r.w / 2, r.x + r.w], ys = [r.y, r.y + r.h / 2, r.y + r.h];
+  return [['nw', 0, 0], ['n', 1, 0], ['ne', 2, 0], ['e', 2, 1], ['se', 2, 2], ['s', 1, 2], ['sw', 0, 2], ['w', 0, 1]]
+    .map(([id, i, j]) => ({ id, x: xs[i], y: ys[j] }));
+}
+
+function draw() {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const W = innerWidth, Hh = innerHeight;
+  ctx.clearRect(0, 0, W, Hh);
+  if (img.complete && img.naturalWidth) ctx.drawImage(img, 0, 0, W, Hh);
+  const r = sel || (mode === 'hover' ? hoverRect : null);
+  ctx.fillStyle = 'rgba(4, 9, 20, 0.55)';
+  ctx.beginPath();
+  ctx.rect(0, 0, W, Hh);
+  if (r) ctx.rect(r.x, r.y, r.w, r.h);
+  ctx.fill('evenodd');
+
+  if (r) {
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = sel ? '#f59e0b' : 'rgba(56, 189, 248, .95)';
+    ctx.setLineDash(sel ? [] : [6, 4]);
+    ctx.strokeRect(r.x + .5, r.y + .5, r.w, r.h);
+    ctx.setLineDash([]);
+  }
+  if (sel && (mode === 'selected' || mode === 'moving' || mode === 'resizing')) {
+    for (const h of handles(sel)) {
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = '#d97706';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+  if (mode === 'hover' || mode === 'pending' || mode === 'drawing') {
+    ctx.strokeStyle = 'rgba(251, 191, 36, .75)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(0, cur.y + .5); ctx.lineTo(W, cur.y + .5);
+    ctx.moveTo(cur.x + .5, 0); ctx.lineTo(cur.x + .5, Hh);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  drawMag();
+  placeBar();
+}
+
+function drawMag() {
+  const show = info && (mode === 'hover' || mode === 'pending' || mode === 'drawing') && cur.x >= 0;
+  mag.style.display = magInfo.style.display = show ? 'block' : 'none';
+  if (!show) return;
+  const ix = cur.x * fx, iy = cur.y * fx, n = 15;
+  magc.imageSmoothingEnabled = false;
+  magc.fillStyle = '#000';
+  magc.fillRect(0, 0, 132, 132);
+  magc.drawImage(img, Math.floor(ix) - (n >> 1), Math.floor(iy) - (n >> 1), n, n, 0, 0, 132, 132);
+  const c = 132 / n;
+  magc.strokeStyle = 'rgba(251, 191, 36, .95)';
+  magc.lineWidth = 1.5;
+  magc.strokeRect((n >> 1) * c, (n >> 1) * c, c, c);
+  let mx = cur.x + 24, my = cur.y + 24;
+  if (mx + 140 > innerWidth) mx = cur.x - 24 - 132;
+  if (my + 166 > innerHeight) my = cur.y - 24 - 160;
+  mag.style.left = `${mx}px`;
+  mag.style.top = `${my}px`;
+  const r = mode === 'drawing' && sel ? toImg(sel) : null;
+  magInfo.textContent = r ? `${r.w} × ${r.h}` : `${Math.round(ix)}, ${Math.round(iy)}`;
+  magInfo.style.left = `${mx + 66 - magInfo.offsetWidth / 2}px`;
+  magInfo.style.top = `${my + 138}px`;
+}
+
+function placeBar() {
+  const show = sel && mode === 'selected';
+  bar.style.display = show ? 'flex' : 'none';
+  if (!show) return;
+  const r = toImg(sel);
+  document.getElementById('size').textContent = `${r.w} × ${r.h}`;
+  const bw = bar.offsetWidth, bh = bar.offsetHeight, m = 10;
+  let x = sel.x + sel.w - bw, y = sel.y + sel.h + m;
+  if (y + bh > innerHeight - 4) y = sel.y - bh - m;
+  if (y < 4) y = sel.y + sel.h - bh - m;
+  x = Math.max(6, Math.min(x, innerWidth - bw - 6));
+  bar.style.left = `${x}px`;
+  bar.style.top = `${y}px`;
+}
+
+function windowAt(p) {
+  if (!info) return null;
+  const ix = p.x * fx, iy = p.y * fx;
+  const w = info.windows.find(r => ix >= r.x && iy >= r.y && ix <= r.x + r.w && iy <= r.y + r.h);
+  return w ? { x: w.x / fx, y: w.y / fx, w: w.w / fx, h: w.h / fx } : { x: 0, y: 0, w: innerWidth, h: innerHeight };
+}
+
+function handleAt(p) {
+  if (!sel) return null;
+  return handles(sel).find(h => Math.abs(h.x - p.x) <= H && Math.abs(h.y - p.y) <= H)?.id || null;
+}
+
+const CURSORS = { nw: 'nwse-resize', se: 'nwse-resize', ne: 'nesw-resize', sw: 'nesw-resize', n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize' };
+
+cv.addEventListener('mousedown', e => {
+  if (e.button !== 0 || mode === 'busy') return;
+  const p = { x: e.clientX, y: e.clientY };
+  hint.style.opacity = '0';
+  if (mode === 'selected') {
+    const h = handleAt(p);
+    if (h) { mode = 'resizing'; grab = { h, p, r: { ...sel } }; return; }
+    if (inside(p, sel)) { mode = 'moving'; grab = { p, r: { ...sel } }; return; }
+  }
+  sel = null;
+  start = p;
+  mode = 'pending';
+  draw();
+});
+
+window.addEventListener('mousemove', e => {
+  const p = { x: e.clientX, y: e.clientY };
+  cur = p;
+  if (mode === 'hover') hoverRect = windowAt(p);
+  else if (mode === 'pending' && Math.hypot(p.x - start.x, p.y - start.y) > 4) mode = 'drawing';
+  if (mode === 'drawing') sel = norm(start, p);
+  if (mode === 'moving') {
+    const r = grab.r;
+    sel = {
+      ...r,
+      x: Math.max(0, Math.min(innerWidth - r.w, r.x + p.x - grab.p.x)),
+      y: Math.max(0, Math.min(innerHeight - r.h, r.y + p.y - grab.p.y)),
+    };
+  }
+  if (mode === 'resizing') {
+    const r = grab.r, h = grab.h, dx = p.x - grab.p.x, dy = p.y - grab.p.y;
+    let x0 = r.x, y0 = r.y, x1 = r.x + r.w, y1 = r.y + r.h;
+    if (h.includes('w')) x0 += dx;
+    if (h.includes('e')) x1 += dx;
+    if (h.includes('n')) y0 += dy;
+    if (h.includes('s')) y1 += dy;
+    sel = norm({ x: Math.max(0, x0), y: Math.max(0, y0) }, { x: Math.min(innerWidth, x1), y: Math.min(innerHeight, y1) });
+  }
+  if (mode === 'selected') {
+    const h = handleAt(p);
+    cv.style.cursor = h ? CURSORS[h] : inside(p, sel) ? 'move' : 'crosshair';
+  } else if (mode !== 'moving' && mode !== 'resizing') {
+    cv.style.cursor = 'crosshair';
+  }
+  draw();
+});
+
+window.addEventListener('mouseup', () => {
+  if (mode === 'pending') {
+    sel = windowAt(start);
+    mode = 'selected';
+  } else if (mode === 'drawing') {
+    mode = sel && sel.w >= 4 && sel.h >= 4 ? 'selected' : 'hover';
+    if (mode === 'hover') sel = null;
+  } else if (mode === 'moving' || mode === 'resizing') {
+    mode = 'selected';
+  }
+  draw();
+});
+
+cv.addEventListener('dblclick', e => { if (mode === 'selected' && inside({ x: e.clientX, y: e.clientY }, sel)) takeImage(); });
+
+async function takeImage() {
+  if (!sel || mode === 'busy') return;
+  mode = 'busy';
+  draw();
+  try { await invoke('finish_image', { rect: toImg(sel) }); }
+  catch (err) { mode = 'selected'; draw(); Modal.error('Could not save the screenshot', err); }
+}
+
+async function takeVideo() {
+  if (!sel || mode === 'busy') return;
+  mode = 'busy';
+  draw();
+  try { await invoke('start_video', { rect: toImg(sel) }); }
+  catch (err) { mode = 'selected'; draw(); Modal.error('Could not start recording', err); }
+}
+
+function reselect() { sel = null; mode = 'hover'; hoverRect = windowAt(cur); draw(); }
+
+document.getElementById('bImage').onclick = takeImage;
+document.getElementById('bVideo').onclick = takeVideo;
+document.getElementById('bRedo').onclick = reselect;
+document.getElementById('bCancel').onclick = () => invoke('cancel_capture');
+bar.addEventListener('mousedown', e => e.stopPropagation());
+
+window.addEventListener('keydown', e => {
+  if (document.querySelector('.modal-back')) return;
+  if (e.key === 'Escape') invoke('cancel_capture');
+  if (e.key === 'Enter' && sel && mode === 'selected') takeImage();
+  if ((e.key === 'v' || e.key === 'V') && sel && mode === 'selected') takeVideo();
+});
+
+window.addEventListener('resize', resize);
+
+(async () => {
+  try {
+    info = await invoke('overlay_info');
+  } catch (err) {
+    invoke('cancel_capture');
+    return;
+  }
+  img.onload = async () => {
+    resize();
+    const w = currentWindow();
+    await w.show();
+    await w.setFocus();
+  };
+  img.onerror = () => invoke('cancel_capture');
+  img.src = `${CAP_BASE}/frame?t=${Date.now()}`;
+})();
+</script>
+</body>
+</html>

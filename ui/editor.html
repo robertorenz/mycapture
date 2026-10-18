@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>myCapture — Preview</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  body { display: grid; grid-template-rows: auto 1fr auto; grid-template-columns: auto 1fr; height: 100vh; }
+  header {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+    border-bottom: 1px solid var(--line); background: var(--panel); min-width: 0;
+  }
+  header img { width: 26px; height: 26px; }
+  header .meta { display: flex; flex-direction: column; min-width: 0; }
+  header .meta b { font-size: 14px; }
+  header .meta span { font-size: 12px; color: var(--muted); }
+  .spacer { flex: 1; }
+  #urlChip {
+    display: none; align-items: center; gap: 8px; max-width: 46%; height: 32px; padding: 0 12px; border-radius: 999px;
+    background: rgba(56, 189, 248, .1); border: 1px solid rgba(56, 189, 248, .35); color: #bae6fd; cursor: pointer; font-size: 12.5px;
+  }
+  #urlChip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  #tools {
+    display: flex; flex-direction: column; gap: 4px; padding: 10px 8px; border-right: 1px solid var(--line);
+    background: var(--panel); overflow-y: auto;
+  }
+  #tools .t {
+    width: 40px; height: 40px; border-radius: 9px; border: 1px solid transparent; background: transparent; color: #c3cbe0;
+    display: grid; place-items: center; cursor: pointer; position: relative;
+  }
+  #tools .t:hover { background: var(--panel-2); }
+  #tools .t.on { background: rgba(245, 158, 11, .14); border-color: rgba(245, 158, 11, .55); color: var(--accent); }
+  #tools .t svg.i { width: 20px; height: 20px; }
+  #tools hr { width: 100%; border: 0; border-top: 1px solid var(--line); margin: 6px 0; }
+  .sw { width: 24px; height: 24px; border-radius: 50%; margin: 3px auto; cursor: pointer; border: 2px solid transparent; box-shadow: 0 0 0 1px rgba(255, 255, 255, .15) inset; }
+  .sw.on { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
+  .sz { height: 26px; width: 40px; border-radius: 7px; display: grid; place-items: center; cursor: pointer; }
+  .sz:hover { background: var(--panel-2); }
+  .sz.on { background: var(--panel-2); outline: 1px solid var(--line); }
+  .sz i { display: block; background: #c3cbe0; border-radius: 4px; width: 22px; }
+
+  #stage {
+    position: relative; overflow: hidden; display: grid; place-items: center; padding: 20px;
+    background-color: #0a101c;
+    background-image: radial-gradient(rgba(255, 255, 255, .045) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+  #canvas { box-shadow: 0 10px 40px rgba(0, 0, 0, .55); border-radius: 4px; cursor: crosshair; background: #fff; }
+  video { max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 10px 40px rgba(0, 0, 0, .55); background: #000; outline: none; }
+  #txt {
+    position: absolute; display: none; min-width: 60px; background: rgba(255, 255, 255, .06); border: 1px dashed var(--accent);
+    outline: none; padding: 0 2px; resize: none; overflow: hidden; font-weight: 700; line-height: 1.2;
+    font-family: "Segoe UI", -apple-system, sans-serif; white-space: pre; user-select: text;
+  }
+
+  footer {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; padding: 10px 14px; flex-wrap: wrap;
+    border-top: 1px solid var(--line); background: var(--panel);
+  }
+  footer .hint { color: var(--muted); font-size: 12px; margin-left: 6px; }
+  body.video #tools { display: none; }
+  body.video .img-only { display: none; }
+  body.image .vid-only { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <img src="sun.png" alt="">
+  <div class="meta"><b id="title">Loading…</b><span id="sub"></span></div>
+  <div class="spacer"></div>
+  <div id="urlChip" title="Click to copy the link"><span data-icon="link"></span><span id="urlText"></span></div>
+  <button class="btn ghost" id="hist" data-icon="history">History</button>
+</header>
+
+<aside id="tools">
+  <button class="t on" data-tool="arrow" title="Arrow (A)" data-icon="arrow"></button>
+  <button class="t" data-tool="rect" title="Box (R)" data-icon="rect"></button>
+  <button class="t" data-tool="ellipse" title="Ellipse (E)" data-icon="ellipse"></button>
+  <button class="t" data-tool="highlight" title="Highlighter (H)" data-icon="highlight"></button>
+  <button class="t" data-tool="pen" title="Pen (P)" data-icon="pen"></button>
+  <button class="t" data-tool="text" title="Text (T)" data-icon="text"></button>
+  <button class="t" data-tool="step" title="Numbered step (N)" data-icon="step"></button>
+  <button class="t" data-tool="blur" title="Pixelate (B)" data-icon="blur"></button>
+  <hr>
+  <div id="swatches"></div>
+  <hr>
+  <div class="sz" data-size="1" title="Thin"><i style="height:2px"></i></div>
+  <div class="sz on" data-size="1.8" title="Medium"><i style="height:4px"></i></div>
+  <div class="sz" data-size="3" title="Thick"><i style="height:7px"></i></div>
+  <hr>
+  <button class="t" id="undo" title="Undo (Ctrl+Z)" data-icon="undo"></button>
+  <button class="t" id="redo" title="Redo (Ctrl+Y)" data-icon="redo"></button>
+</aside>
+
+<main id="stage">
+  <canvas id="canvas" class="img-only"></canvas>
+  <video id="video" class="vid-only" controls></video>
+  <textarea id="txt" rows="1" spellcheck="false"></textarea>
+</main>
+
+<footer>
+  <button class="btn primary img-only" id="copy" data-icon="copy">Copy image</button>
+  <button class="btn primary vid-only" id="copyVid" data-icon="copy">Copy video</button>
+  <button class="btn" id="share" data-icon="share">Share link</button>
+  <button class="btn img-only" id="copyFile" data-icon="file">Copy as file</button>
+  <button class="btn" id="saveAs" data-icon="save">Save as…</button>
+  <span class="hint" id="hint">Paste anywhere with Ctrl+V — WhatsApp, Teams, Slack, email…</span>
+  <div class="spacer"></div>
+  <button class="btn ghost danger" id="del" data-icon="trash">Delete</button>
+</footer>
+
+<script src="shared.js"></script>
+<script>
+hydrateIcons();
+const $ = id => document.getElementById(id);
+const id = new URLSearchParams(location.search).get('id');
+const isMac = /Mac/.test(navigator.platform);
+if (isMac) $('hint').textContent = 'Paste anywhere with ⌘V — WhatsApp, Teams, Slack, email…';
+
+let item = null;
+const cv = $('canvas'), ctx = cv.getContext('2d');
+const base = new Image();
+base.crossOrigin = 'anonymous';
+let tool = 'arrow', color = '#ef4444', sizeMult = 1.8;
+let shapes = [], redoStack = [], drawing = null, dirty = false, scale = 1;
+const COLORS = ['#ef4444', '#f59e0b', '#facc15', '#10b981', '#38bdf8', '#2563eb', '#ffffff', '#0f172a'];
+
+$('swatches').innerHTML = COLORS.map(c => `<div class="sw${c === color ? ' on' : ''}" data-c="${c}" style="background:${c}"></div>`).join('');
+$('swatches').addEventListener('click', e => {
+  const c = e.target.dataset.c;
+  if (!c) return;
+  color = c;
+  document.querySelectorAll('.sw').forEach(s => s.classList.toggle('on', s.dataset.c === c));
+});
+document.querySelectorAll('.sz').forEach(el => el.onclick = () => {
+  sizeMult = +el.dataset.size;
+  document.querySelectorAll('.sz').forEach(s => s.classList.toggle('on', s === el));
+});
+function setTool(t) {
+  commitText();
+  tool = t;
+  document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
+  cv.style.cursor = t === 'text' ? 'text' : 'crosshair';
+}
+document.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => setTool(b.dataset.tool));
+
+// ---------- drawing ----------
+const unit = () => Math.max(2, Math.round(Math.hypot(cv.width, cv.height) / 450));
+const fontPx = s => Math.round(unit() * 7 * s.size);
+
+function arrow(c, s) {
+  const w = unit() * s.size, ang = Math.atan2(s.y2 - s.y1, s.x2 - s.x1);
+  const head = Math.max(12, w * 4.2), len = Math.hypot(s.x2 - s.x1, s.y2 - s.y1);
+  if (len < 2) return;
+  const bx = s.x2 - Math.cos(ang) * head * .8, by = s.y2 - Math.sin(ang) * head * .8;
+  c.lineCap = 'round';
+  c.lineWidth = w;
+  c.beginPath(); c.moveTo(s.x1, s.y1); c.lineTo(bx, by); c.stroke();
+  c.beginPath();
+  c.moveTo(s.x2, s.y2);
+  c.lineTo(s.x2 - head * Math.cos(ang - .45), s.y2 - head * Math.sin(ang - .45));
+  c.lineTo(s.x2 - head * Math.cos(ang + .45), s.y2 - head * Math.sin(ang + .45));
+  c.closePath(); c.fill();
+}
+
+function rectOf(s) { return { x: Math.min(s.x1, s.x2), y: Math.min(s.y1, s.y2), w: Math.abs(s.x2 - s.x1), h: Math.abs(s.y2 - s.y1) }; }
+
+function drawShape(c, s) {
+  c.save();
+  c.strokeStyle = c.fillStyle = s.color;
+  c.lineJoin = 'round';
+  const shadow = () => { c.shadowColor = 'rgba(0,0,0,.35)'; c.shadowBlur = unit() * 1.5; c.shadowOffsetY = unit() * .4; };
+  const r = rectOf(s);
+  switch (s.type) {
+    case 'arrow': shadow(); arrow(c, s); break;
+    case 'rect': shadow(); c.lineWidth = unit() * s.size; c.strokeRect(r.x, r.y, r.w, r.h); break;
+    case 'ellipse':
+      shadow(); c.lineWidth = unit() * s.size;
+      c.beginPath(); c.ellipse(r.x + r.w / 2, r.y + r.h / 2, r.w / 2, r.h / 2, 0, 0, Math.PI * 2); c.stroke(); break;
+    case 'highlight':
+      c.globalAlpha = .38; c.globalCompositeOperation = 'multiply';
+      c.fillStyle = s.color === '#ffffff' || s.color === '#0f172a' ? '#facc15' : s.color;
+      c.fillRect(r.x, r.y, r.w, r.h); break;
+    case 'pen':
+      shadow(); c.lineWidth = unit() * s.size; c.lineCap = 'round';
+      c.beginPath(); s.pts.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.stroke(); break;
+    case 'blur': {
+      if (r.w < 2 || r.h < 2) break;
+      const px = Math.max(6, Math.round(unit() * 4 * s.size));
+      const tw = Math.max(1, Math.round(r.w / px)), th = Math.max(1, Math.round(r.h / px));
+      const t = document.createElement('canvas'); t.width = tw; t.height = th;
+      t.getContext('2d').drawImage(cv, r.x, r.y, r.w, r.h, 0, 0, tw, th);
+      c.imageSmoothingEnabled = false;
+      c.drawImage(t, 0, 0, tw, th, r.x, r.y, r.w, r.h);
+      break;
+    }
+    case 'text': {
+      const fs = fontPx(s);
+      c.font = `700 ${fs}px "Segoe UI", -apple-system, sans-serif`;
+      c.textBaseline = 'top';
+      c.lineWidth = Math.max(2, fs / 7);
+      c.strokeStyle = s.color === '#0f172a' ? '#ffffff' : 'rgba(0,0,0,.85)';
+      s.text.split('\n').forEach((line, i) => {
+        c.strokeText(line, s.x, s.y + i * fs * 1.2);
+        c.fillText(line, s.x, s.y + i * fs * 1.2);
+      });
+      break;
+    }
+    case 'step': {
+      const rad = unit() * 5.5 * s.size;
+      shadow();
+      c.beginPath(); c.arc(s.x, s.y, rad, 0, Math.PI * 2); c.fill();
+      c.shadowColor = 'transparent';
+      c.lineWidth = Math.max(2, rad / 7); c.strokeStyle = '#fff'; c.stroke();
+      c.fillStyle = s.color === '#ffffff' || s.color === '#facc15' ? '#0f172a' : '#fff';
+      c.font = `800 ${Math.round(rad * 1.15)}px "Segoe UI", -apple-system, sans-serif`;
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(String(s.n), s.x, s.y + rad * .06);
+      break;
+    }
+  }
+  c.restore();
+}
+
+function render() {
+  if (!base.naturalWidth) return;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(base, 0, 0);
+  shapes.forEach(s => drawShape(ctx, s));
+  if (drawing) drawShape(ctx, drawing);
+  $('undo').disabled = !shapes.length;
+  $('redo').disabled = !redoStack.length;
+}
+
+function fit() {
+  if (!base.naturalWidth) return;
+  const st = $('stage'), pad = 40;
+  scale = Math.min((st.clientWidth - pad) / cv.width, (st.clientHeight - pad) / cv.height, 1);
+  cv.style.width = `${cv.width * scale}px`;
+  cv.style.height = `${cv.height * scale}px`;
+}
+addEventListener('resize', fit);
+
+function pos(e) {
+  const r = cv.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale };
+}
+
+function push(s) { shapes.push(s); redoStack = []; dirty = true; render(); }
+
+cv.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  const p = pos(e);
+  if (tool === 'text') { e.preventDefault(); openText(p); return; }
+  commitText();
+  if (tool === 'step') { push({ type: 'step', x: p.x, y: p.y, n: shapes.filter(s => s.type === 'step').length + 1, color, size: sizeMult }); return; }
+  drawing = tool === 'pen'
+    ? { type: 'pen', pts: [[p.x, p.y]], color, size: sizeMult }
+    : { type: tool, x1: p.x, y1: p.y, x2: p.x, y2: p.y, color, size: sizeMult };
+});
+addEventListener('mousemove', e => {
+  if (!drawing) return;
+  const p = pos(e);
+  if (drawing.type === 'pen') drawing.pts.push([p.x, p.y]);
+  else {
+    drawing.x2 = p.x; drawing.y2 = p.y;
+    if (e.shiftKey && (drawing.type === 'rect' || drawing.type === 'ellipse')) {
+      const d = Math.max(Math.abs(p.x - drawing.x1), Math.abs(p.y - drawing.y1));
+      drawing.x2 = drawing.x1 + Math.sign(p.x - drawing.x1) * d;
+      drawing.y2 = drawing.y1 + Math.sign(p.y - drawing.y1) * d;
+    }
+  }
+  render();
+});
+addEventListener('mouseup', () => {
+  if (!drawing) return;
+  const d = drawing;
+  drawing = null;
+  const big = d.type === 'pen' ? d.pts.length > 1 : Math.hypot(d.x2 - d.x1, d.y2 - d.y1) > 3;
+  if (big) push(d); else render();
+});
+
+// ---------- text ----------
+const txt = $('txt');
+let textAt = null;
+function openText(p) {
+  commitText();
+  textAt = p;
+  const r = cv.getBoundingClientRect(), sr = $('stage').getBoundingClientRect();
+  const fs = fontPx({ size: sizeMult }) * scale;
+  Object.assign(txt.style, {
+    display: 'block', left: `${r.left - sr.left + p.x * scale}px`, top: `${r.top - sr.top + p.y * scale}px`,
+    fontSize: `${fs}px`, color, height: `${fs * 1.3}px`, width: '80px',
+  });
+  txt.value = '';
+  setTimeout(() => txt.focus(), 0);
+}
+function autosize() {
+  txt.style.width = '10px';
+  txt.style.width = `${Math.max(80, txt.scrollWidth + 8)}px`;
+  txt.style.height = `${txt.scrollHeight}px`;
+}
+txt.addEventListener('input', autosize);
+txt.addEventListener('keydown', e => {
+  e.stopPropagation();
+  if (e.key === 'Escape') { txt.value = ''; commitText(); }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitText(); }
+});
+txt.addEventListener('blur', () => commitText());
+function commitText() {
+  if (!textAt) return;
+  const t = txt.value.replace(/\s+$/, '');
+  const at = textAt;
+  textAt = null;
+  txt.style.display = 'none';
+  if (t) push({ type: 'text', x: at.x, y: at.y, text: t, color, size: sizeMult });
+}
+
+function undo() { commitText(); if (shapes.length) { redoStack.push(shapes.pop()); dirty = true; render(); } }
+function redo() { if (redoStack.length) { shapes.push(redoStack.pop()); dirty = true; render(); } }
+$('undo').onclick = undo;
+$('redo').onclick = redo;
+
+// ---------- actions ----------
+async function ensureSaved() {
+  commitText();
+  if (item.kind !== 'image' || !dirty) return;
+  const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  await invoke('save_edited', bytes, { headers: { 'x-id': id } });
+  dirty = false;
+  item.url = null;
+  showUrl();
+}
+
+async function run(fn, okMsg) {
+  try {
+    await ensureSaved();
+    const r = await fn();
+    if (okMsg) toast(typeof okMsg === 'function' ? okMsg(r) : okMsg);
+  } catch (err) {
+    Modal.error('That did not work', err);
+  }
+}
+
+function showUrl() {
+  $('urlChip').style.display = item.url ? 'flex' : 'none';
+  $('urlText').textContent = item.url || '';
+}
+
+$('copy').onclick = () => run(() => invoke('copy_image', { id }), 'Image copied — paste it anywhere');
+$('copyVid').onclick = () => run(() => invoke('copy_file', { id }), 'Video copied — paste it into your chat');
+$('copyFile').onclick = () => run(() => invoke('copy_file', { id }), 'File copied — paste it into your chat');
+$('share').onclick = async () => {
+  const b = $('share');
+  b.disabled = true;
+  await run(async () => { item.url = await invoke('share', { id }); showUrl(); }, 'Link copied to the clipboard');
+  b.disabled = false;
+};
+$('saveAs').onclick = () => run(() => invoke('save_as', { id }), saved => saved ? 'Saved' : null);
+$('urlChip').onclick = () => run(() => invoke('copy_text', { text: item.url }), 'Link copied');
+$('hist').onclick = () => invoke('open_history');
+$('del').onclick = async () => {
+  if (!await Modal.confirm('Delete this capture?', 'It will be removed from your history and disk. Shared links stay online.', 'Delete', true)) return;
+  await invoke('history_delete', { id });
+  currentWindow().close();
+};
+
+addEventListener('keydown', e => {
+  if (document.querySelector('.modal-back')) return;
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+  if (mod && e.key.toLowerCase() === 'c') { e.preventDefault(); (item.kind === 'image' ? $('copy') : $('copyVid')).click(); return; }
+  if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); $('saveAs').click(); return; }
+  if (mod || item?.kind !== 'image') return;
+  const map = { a: 'arrow', r: 'rect', e: 'ellipse', h: 'highlight', p: 'pen', t: 'text', n: 'step', b: 'blur' };
+  if (map[e.key.toLowerCase()]) setTool(map[e.key.toLowerCase()]);
+});
+
+listen('shared', e => {
+  const [sid, url] = e.payload;
+  if (sid === id && item) { item.url = url; showUrl(); toast('Uploaded — link copied'); }
+});
+
+(async () => {
+  try {
+    item = await invoke('history_get', { id });
+  } catch (err) {
+    await Modal.error('Capture not found', err);
+    currentWindow().close();
+    return;
+  }
+  document.body.classList.add(item.kind);
+  const when = new Date(item.created).toLocaleString();
+  $('title').textContent = item.kind === 'image' ? 'Screenshot' : 'Screen recording';
+  $('sub').textContent = `${item.width} × ${item.height}${item.kind === 'video' ? ` · ${fmtDuration(item.duration)}` : ''} · ${when}`;
+  document.title = `myCapture — ${$('title').textContent}`;
+  showUrl();
+  if (item.kind === 'image') {
+    base.onload = () => { cv.width = base.naturalWidth; cv.height = base.naturalHeight; fit(); render(); };
+    base.src = fileUrl(item.file);
+  } else {
+    $('video').src = fileUrl(item.file);
+  }
+})();
+</script>
+</body>
+</html>

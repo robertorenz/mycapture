@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>myCapture — History</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  body { display: flex; flex-direction: column; height: 100vh; }
+  header {
+    display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line);
+    background: var(--panel); flex-wrap: wrap;
+  }
+  header img { width: 30px; height: 30px; }
+  header h1 { font-size: 17px; }
+  .seg { display: inline-flex; background: #0d1527; border: 1px solid var(--line); border-radius: 9px; padding: 3px; }
+  .seg button { border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 500; height: 28px; padding: 0 12px; border-radius: 6px; cursor: pointer; }
+  .seg button.on { background: var(--panel-2); color: var(--text); }
+  .spacer { flex: 1; }
+  main { flex: 1; overflow-y: auto; padding: 18px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; cursor: pointer;
+    transition: border-color .15s, transform .15s, box-shadow .15s; display: flex; flex-direction: column;
+  }
+  .card:hover { border-color: #3a4d78; transform: translateY(-2px); box-shadow: 0 10px 26px rgba(0, 0, 0, .35); }
+  .thumb { position: relative; aspect-ratio: 16 / 10; background: #0a101c; display: grid; place-items: center; overflow: hidden; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .kind {
+    position: absolute; left: 8px; top: 8px; display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px;
+    border-radius: 6px; font-size: 11.5px; font-weight: 600; background: rgba(11, 18, 32, .85); color: #e6ebf5;
+  }
+  .kind svg.i { width: 13px; height: 13px; }
+  .kind.video { color: #fecaca; }
+  .shared { position: absolute; right: 8px; top: 8px; height: 22px; padding: 0 8px; border-radius: 6px; font-size: 11.5px; font-weight: 600; background: rgba(56, 189, 248, .9); color: #062033; display: flex; align-items: center; gap: 4px; }
+  .shared svg.i { width: 13px; height: 13px; }
+  .info { padding: 10px 12px 4px; font-size: 12.5px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+  .acts { display: flex; gap: 4px; padding: 6px 8px 10px; }
+  .acts .btn { height: 30px; padding: 0 10px; font-size: 12.5px; }
+  .acts .btn.icon { width: 30px; padding: 0; }
+  .acts .btn svg.i { width: 15px; height: 15px; }
+  .empty { height: 100%; display: grid; place-items: center; text-align: center; color: var(--muted); }
+  .empty img { width: 96px; opacity: .9; margin-bottom: 14px; }
+  .empty h2 { color: var(--text); font-size: 18px; margin-bottom: 6px; }
+  .empty kbd { font: 600 12px ui-monospace, Consolas, monospace; background: #1d2a46; border: 1px solid #34446a; border-radius: 5px; padding: 2px 6px; }
+</style>
+</head>
+<body>
+<header>
+  <img src="sun.png" alt="">
+  <h1>History</h1>
+  <div class="seg" id="filter">
+    <button class="on" data-f="all">All</button>
+    <button data-f="image">Images</button>
+    <button data-f="video">Videos</button>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn ghost" id="folder" data-icon="folder">Open folder</button>
+  <button class="btn ghost" id="settings" data-icon="settings">Settings</button>
+  <button class="btn primary" id="capture" data-icon="crosshair">New capture</button>
+</header>
+<main id="main"></main>
+<script src="shared.js"></script>
+<script>
+hydrateIcons();
+const main = document.getElementById('main');
+let items = [], filter = 'all', hotkey = '';
+
+function render() {
+  const list = items.filter(i => filter === 'all' || i.kind === filter);
+  if (!list.length) {
+    main.innerHTML = `<div class="empty"><div><img src="sun.png" alt=""><h2>No captures yet</h2>
+      <p>Hover the sun and pick <b>Capture</b>, or press <kbd>${esc(hotkey.replace('CommandOrControl', /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl'))}</kbd>.</p></div></div>`;
+    return;
+  }
+  main.innerHTML = `<div class="grid">${list.map(i => `
+    <div class="card" data-id="${esc(i.id)}">
+      <div class="thumb">
+        <img src="${fileUrl(i.thumb, false)}?v=${encodeURIComponent(i.width + 'x' + i.height + (i.url || ''))}" alt="" loading="lazy" onerror="this.style.display='none'">
+        <span class="kind ${i.kind}">${icon(i.kind === 'image' ? 'image' : 'video')}${i.kind === 'image' ? `${i.width}×${i.height}` : fmtDuration(i.duration)}</span>
+        ${i.url ? `<span class="shared">${icon('link')}Shared</span>` : ''}
+      </div>
+      <div class="info"><span>${esc(new Date(i.created).toLocaleString())}</span></div>
+      <div class="acts">
+        <button class="btn" data-act="copy" title="${i.kind === 'image' ? 'Copy image' : 'Copy video file'}">${icon('copy')}Copy</button>
+        <button class="btn" data-act="share" title="Upload and copy link">${icon('share')}Share</button>
+        <div class="spacer"></div>
+        <button class="btn icon ghost danger" data-act="delete" title="Delete">${icon('trash')}</button>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+main.addEventListener('click', async e => {
+  const card = e.target.closest('.card');
+  if (!card) return;
+  const id = card.dataset.id;
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  try {
+    if (!act) return invoke('open_editor', { id });
+    if (act === 'copy') { await invoke('copy_image', { id }); toast('Copied — paste it anywhere'); }
+    if (act === 'share') {
+      const b = e.target.closest('button');
+      b.disabled = true;
+      try { await invoke('share', { id }); toast('Link copied to the clipboard'); } finally { b.disabled = false; }
+    }
+    if (act === 'delete' && await Modal.confirm('Delete this capture?', 'It will be removed from your history and disk.', 'Delete', true)) {
+      await invoke('history_delete', { id });
+    }
+  } catch (err) {
+    Modal.error('That did not work', err);
+  }
+});
+
+document.getElementById('filter').addEventListener('click', e => {
+  const f = e.target.dataset.f;
+  if (!f) return;
+  filter = f;
+  document.querySelectorAll('#filter button').forEach(b => b.classList.toggle('on', b.dataset.f === f));
+  render();
+});
+document.getElementById('folder').onclick = () => invoke('open_captures_folder');
+document.getElementById('settings').onclick = () => invoke('open_settings');
+document.getElementById('capture').onclick = () => invoke('begin_capture');
+
+async function load() { items = await invoke('history_list'); render(); }
+listen('history-changed', load);
+invoke('get_settings').then(s => { hotkey = s.hotkey; load(); });
+</script>
+</body>
+</html>

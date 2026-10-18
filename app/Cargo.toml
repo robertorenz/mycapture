@@ -1,0 +1,31 @@
+[package]
+name = "mycapture"
+version = "0.1.0"
+edition = "2021"
+description = "Screen capture: screenshots, screen video with webcam, instant sharing"
+license = "MIT"
+
+[lib]
+name = "mycapture_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png", "macos-private-api"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+xcap = "0.9"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+clipboard-rs = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["multipart", "json", "rustls-tls"] }
+rust-s3 = { version = "0.37", default-features = false, features = ["tokio-rustls-tls"] }
+tokio = { version = "1", features = ["process", "io-util", "time", "fs"] }
+chrono = { version = "0.4", features = ["serde"] }
+dirs = "6"
+uuid = { version = "1", features = ["v4"] }
+base64 = "0.22"

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>myCapture recording</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  html, body { background: transparent !important; overflow: hidden; }
+  .pill {
+    position: absolute; inset: 4px; display: flex; align-items: center; gap: 4px; padding: 0 6px 0 4px;
+    background: rgba(11, 18, 32, .97); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .45);
+  }
+  .grip { width: 22px; height: 100%; display: grid; place-items: center; color: #4b5b7e; cursor: grab; }
+  .status { display: flex; align-items: center; gap: 8px; min-width: 112px; padding: 0 8px; font: 600 15px ui-monospace, Consolas, monospace; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; background: #64748b; flex: none; }
+  body.live .dot { background: var(--danger); box-shadow: 0 0 0 4px rgba(239, 68, 68, .2); animation: blink 1.2s infinite; }
+  body.paused .dot { background: var(--accent); }
+  @keyframes blink { 50% { opacity: .35; } }
+  .btn { height: 34px; }
+  .btn.icon { width: 34px; }
+  .btn.on { color: var(--accent); border-color: rgba(245, 158, 11, .5); }
+  #stop { background: var(--danger); border-color: var(--danger); color: #fff; }
+  #stop:hover { background: #f05252; }
+  .mic { color: var(--muted); display: grid; place-items: center; width: 24px; }
+  .mic.on { color: var(--ok); }
+  .spacer { flex: 1; }
+</style>
+</head>
+<body>
+<div class="pill">
+  <div class="grip" id="grip" title="Drag to move" data-icon="grip"></div>
+  <div class="status"><span class="dot"></span><span id="time">Ready</span></div>
+  <span class="mic" id="mic" title="Microphone" data-icon="mic"></span>
+  <span class="spacer"></span>
+  <button class="btn icon" id="pause" title="Pause" data-icon="pause" disabled></button>
+  <button class="btn icon" id="cam" title="Show / hide camera" data-icon="webcam"></button>
+  <button class="btn" id="stop" title="Finish recording" data-icon="stop" disabled>Finish</button>
+  <button class="btn icon ghost danger" id="cancel" title="Discard recording" data-icon="trash"></button>
+</div>
+<script src="shared.js"></script>
+<script>
+hydrateIcons();
+const $ = id => document.getElementById(id);
+let state = 'countdown', busy = false;
+
+function setState(s) {
+  state = s;
+  document.body.className = s;
+  TAURI.event.emit('rec-state', s);
+  $('pause').disabled = $('stop').disabled = !(s === 'live' || s === 'paused');
+  $('pause').innerHTML = icon(s === 'paused' ? 'play' : 'pause');
+  $('pause').title = s === 'paused' ? 'Resume' : 'Pause';
+}
+
+async function refresh() {
+  if (state !== 'live' && state !== 'paused') return;
+  const st = await invoke('record_status');
+  if (!st.active) return;
+  $('time').textContent = fmtDuration(st.elapsed) + (st.paused ? ' ❚❚' : '');
+  $('cam').classList.toggle('on', st.camera);
+}
+
+async function finish() {
+  if (busy || !(state === 'live' || state === 'paused')) return;
+  busy = true;
+  setState('saving');
+  $('time').textContent = 'Saving…';
+  try { await invoke('record_stop'); }
+  catch (err) { busy = false; Modal.error('Recording failed', err); }
+}
+
+$('pause').onclick = async () => {
+  if (busy) return;
+  busy = true;
+  try {
+    if (state === 'live') { await invoke('record_pause'); setState('paused'); }
+    else if (state === 'paused') { await invoke('record_resume'); setState('live'); }
+  } catch (err) { Modal.error('Recording problem', err); }
+  busy = false;
+  refresh();
+};
+$('stop').onclick = finish;
+$('cancel').onclick = () => invoke('record_cancel');
+$('cam').onclick = async () => { $('cam').classList.toggle('on', await invoke('toggle_camera')); };
+$('grip').addEventListener('mousedown', () => currentWindow().startDragging());
+listen('rec-hotkey', finish);
+addEventListener('keydown', e => { if (e.key === 'Escape') invoke('record_cancel'); });
+
+(async () => {
+  const st = await invoke('record_status');
+  $('mic').classList.toggle('on', st.mic);
+  $('mic').title = st.mic ? 'Microphone on' : 'Microphone off';
+  $('cam').classList.toggle('on', st.camera);
+  setState('countdown');
+  for (let n = st.countdown; n > 0; n--) {
+    $('time').textContent = `Starting in ${n}`;
+    await new Promise(r => setTimeout(r, 1000));
+    if (state !== 'countdown') return;
+  }
+  $('time').textContent = 'Starting…';
+  try {
+    await invoke('record_resume');
+    setState('live');
+    refresh();
+  } catch (err) {
+    // The backend has already closed the recording; show why in a popup window.
+    console.error(err);
+  }
+  setInterval(refresh, 500);
+})();
+</script>
+</body>
+</html>

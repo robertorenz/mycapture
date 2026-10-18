@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>myCapture camera</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  html, body { background: transparent !important; overflow: hidden; }
+  #wrap {
+    position: absolute; inset: 4px; border-radius: 50%; overflow: hidden; cursor: grab;
+    background: #0b1220; border: 3px solid #f59e0b; box-shadow: 0 6px 18px rgba(0, 0, 0, .5);
+  }
+  body.square #wrap { border-radius: 22px; }
+  video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; pointer-events: none; }
+  #msg { position: absolute; inset: 0; display: none; place-items: center; text-align: center; padding: 18%; color: var(--muted); font-size: 12px; }
+  #tools {
+    position: absolute; left: 50%; bottom: 12%; transform: translateX(-50%); display: flex; gap: 4px;
+    padding: 4px; border-radius: 10px; background: rgba(11, 18, 32, .85); opacity: 0; transition: opacity .15s;
+  }
+  #wrap:hover #tools { opacity: 1; }
+  #tools button {
+    width: 26px; height: 26px; border-radius: 7px; border: 0; background: transparent; color: #e6ebf5;
+    display: grid; place-items: center; cursor: pointer;
+  }
+  #tools button:hover { background: #26334f; }
+  #tools svg.i { width: 15px; height: 15px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <video id="v" autoplay muted playsinline></video>
+  <div id="msg"></div>
+  <div id="tools">
+    <button id="smaller" title="Smaller" data-icon="minus"></button>
+    <button id="bigger" title="Bigger" data-icon="plus"></button>
+    <button id="shape" title="Circle / rounded square" data-icon="shape"></button>
+    <button id="close" title="Hide camera" data-icon="x"></button>
+  </div>
+</div>
+<script src="shared.js"></script>
+<script>
+hydrateIcons();
+let size = 220, shape = 'circle';
+const msg = document.getElementById('msg');
+
+async function start() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 720 }, height: { ideal: 720 }, facingMode: 'user' }, audio: false });
+    document.getElementById('v').srcObject = stream;
+  } catch (err) {
+    msg.style.display = 'grid';
+    msg.textContent = 'Camera unavailable — check camera permission for myCapture.';
+  }
+}
+
+async function apply() {
+  document.body.classList.toggle('square', shape === 'square');
+  await invoke('camera_set_size', { size, shape });
+}
+
+document.getElementById('wrap').addEventListener('mousedown', e => {
+  if (e.button === 0 && !e.target.closest('button')) currentWindow().startDragging();
+});
+document.getElementById('smaller').onclick = () => { size = Math.max(120, size - 40); apply(); };
+document.getElementById('bigger').onclick = () => { size = Math.min(480, size + 40); apply(); };
+document.getElementById('shape').onclick = () => { shape = shape === 'circle' ? 'square' : 'circle'; apply(); };
+document.getElementById('close').onclick = () => invoke('toggle_camera');
+
+(async () => {
+  const s = await invoke('get_settings');
+  size = s.camera_size;
+  shape = s.camera_shape || 'circle';
+  document.body.classList.toggle('square', shape === 'square');
+  await currentWindow().show();
+  start();
+})();
+</script>
+</body>
+</html>

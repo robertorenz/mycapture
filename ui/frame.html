@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>myCapture region</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  #b {
+    position: absolute; inset: 0; border: 4px solid #f59e0b; border-radius: 3px;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .35) inset; transition: border-color .2s;
+  }
+  body.live #b { border-color: #ef4444; animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { border-color: #f87171; } }
+</style>
+</head>
+<body>
+<div id="b"></div>
+<script>
+window.__TAURI__.event.listen('rec-state', e => document.body.classList.toggle('live', e.payload === 'live'));
+</script>
+</body>
+</html>

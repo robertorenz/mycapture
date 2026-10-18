@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>myCapture</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  body { display: flex; flex-direction: column; padding: 22px; gap: 14px; background: var(--panel); }
+  .head { display: flex; gap: 12px; align-items: center; }
+  .badge { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: rgba(239, 68, 68, .15); color: #f87171; flex: none; }
+  #msg { color: #c3cbe0; white-space: pre-wrap; word-break: break-word; user-select: text; flex: 1; overflow: auto; }
+  .actions { display: flex; justify-content: flex-end; gap: 8px; }
+</style>
+</head>
+<body>
+  <div class="head"><span class="badge" data-icon="alert"></span><h3>Something needs your attention</h3></div>
+  <div id="msg"></div>
+  <div class="actions">
+    <button class="btn" id="settings">Open settings</button>
+    <button class="btn primary" id="ok">OK</button>
+  </div>
+<script src="shared.js"></script>
+<script>
+hydrateIcons();
+document.getElementById('msg').textContent = new URLSearchParams(location.search).get('msg') || 'Unknown error';
+document.getElementById('ok').onclick = () => currentWindow().close();
+document.getElementById('settings').onclick = async () => { await invoke('open_settings'); currentWindow().close(); };
+addEventListener('keydown', e => { if (e.key === 'Escape' || e.key === 'Enter') currentWindow().close(); });
+document.getElementById('ok').focus();
+</script>
+</body>
+</html>
