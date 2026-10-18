@@ -2,6 +2,8 @@ mod capture;
 mod clip;
 mod codec;
 mod history;
+#[cfg(windows)]
+mod loopback;
 mod record;
 mod settings;
 mod upload;
@@ -283,9 +285,13 @@ fn start_video(app: AppHandle, window: WebviewWindow, rect: Rect) -> Result<(), 
         grab,
         crop: r,
         screen_index: p.screen_index,
+        mon_origin: (p.mon_x, p.mon_y),
+        gdi_fallback: false,
         screen_rect,
         segments: vec![],
         child: None,
+        #[cfg(windows)]
+        loopback: None,
         seg_started: None,
         elapsed: Default::default(),
         opened_camera,
@@ -301,6 +307,7 @@ struct RecStatus {
     elapsed: f64,
     countdown: u32,
     mic: bool,
+    desktop_audio: bool,
     camera: bool,
     /// The format needs converting when the recording finishes.
     converts: bool,
@@ -317,6 +324,7 @@ fn record_status(app: AppHandle) -> RecStatus {
         elapsed: rec.as_ref().map(|r| r.total_elapsed().as_secs_f64()).unwrap_or(0.0),
         countdown: s.countdown.min(10),
         mic: s.record_mic,
+        desktop_audio: s.record_system_audio && !cfg!(target_os = "macos"),
         camera: app.get_webview_window("camera").is_some(),
         converts: rec.as_ref().map(|r| codec::get(&r.codec).mode != codec::Mode::Direct).unwrap_or(false),
     }

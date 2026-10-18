@@ -32,6 +32,7 @@
   <div class="grip" id="grip" title="Drag to move" data-icon="grip"></div>
   <div class="status"><span class="dot"></span><span id="time">Ready</span></div>
   <span class="mic" id="mic" title="Microphone" data-icon="mic"></span>
+  <span class="mic" id="desk" title="Desktop sound" data-icon="speaker"></span>
   <span class="spacer"></span>
   <button class="btn icon" id="pause" title="Pause" data-icon="pause" disabled></button>
   <button class="btn icon" id="cam" title="Show / hide camera" data-icon="webcam"></button>
@@ -92,6 +93,8 @@ addEventListener('keydown', e => { if (e.key === 'Escape') invoke('record_cancel
   converting = st.converts;
   $('mic').classList.toggle('on', st.mic);
   $('mic').title = st.mic ? 'Microphone on' : 'Microphone off';
+  $('desk').classList.toggle('on', st.desktop_audio);
+  $('desk').title = st.desktop_audio ? 'Desktop sound on' : 'Desktop sound off';
   $('cam').classList.toggle('on', st.camera);
   setState('countdown');
   for (let n = st.countdown; n > 0; n--) {

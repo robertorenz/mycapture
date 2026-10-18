@@ -147,6 +147,10 @@
         <div class="lab"><b>Microphone</b><span id="micNote">Which input to record.</span></div>
         <div class="ctl"><select data-k="mic_device" id="mic"></select><button class="btn icon" id="refreshMic" title="Refresh" data-icon="redo"></button></div>
       </div>
+      <div class="row" id="desktopRow">
+        <div class="lab"><b>Record desktop sound</b><span id="desktopNote">Everything your speakers play: videos, calls, app sounds. Mixed with the microphone.</span></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" data-k="record_system_audio"><span></span></label></div>
+      </div>
     </div>
     <div class="card">
       <div class="row">
@@ -360,6 +364,10 @@ $('close').onclick = () => currentWindow().close();
 (async () => {
   S = await invoke('get_settings');
   fill();
+  if (navigator.userAgent.includes('Mac')) {
+    $('desktopRow').querySelector('input').disabled = true;
+    $('desktopNote').textContent = 'macOS does not let apps record system sound without an add-on such as BlackHole.';
+  }
   loadMics();
   loadCodecs();
   invoke('check_ffmpeg').then(v => { $('ffStatus').textContent = v; $('ffStatus').className = 'status ok'; })

@@ -54,6 +54,8 @@ pub struct Settings {
     pub fps: u32,
     pub record_mic: bool,
     pub mic_device: String,
+    /// Also record what plays through the speakers (Windows loopback, PulseAudio monitor on Linux).
+    pub record_system_audio: bool,
     pub camera_on_record: bool,
     pub camera_size: u32,
     pub camera_shape: String,
@@ -86,6 +88,7 @@ impl Default for Settings {
             fps: 30,
             record_mic: true,
             mic_device: String::new(),
+            record_system_audio: true,
             camera_on_record: false,
             camera_size: 220,
             camera_shape: "circle".into(),
