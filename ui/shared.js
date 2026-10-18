@@ -40,6 +40,7 @@ const ICONS = {
   highlight: '<path d="M4 20h7M14 4l6 6-9 9H5v-6z"/>',
   text: '<path d="M5 6V4h14v2M12 4v16M9 20h6"/>',
   blur: '<rect x="4" y="4" width="5" height="5"/><rect x="15" y="4" width="5" height="5"/><rect x="9.5" y="9.5" width="5" height="5"/><rect x="4" y="15" width="5" height="5"/><rect x="15" y="15" width="5" height="5"/>',
+  pointer: '<path d="M6 3l13 8.5-5.6 1.4L16.6 20l-2.6 1.2-3.2-7.1L6 18z"/>',
   callout: '<path d="M4 5h16v10h-9l-4 4v-4H4z"/><path d="M8 9h8M8 12h5"/>',
   step: '<circle cx="12" cy="12" r="8"/><path d="M11 9l2-1v8"/>',
   mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',

@@ -9,7 +9,7 @@ A shiny little moon peeks out from the edge of your screen, half showing. Hover 
 ## Features
 
 - **Screenshots**: every monitor freezes at once, so you can drag an area or click a window on any screen, then fine-tune the selection with resize handles and a magnifier.
-- **Annotate**: Snagit-style arrows (classic, double, curved, block, tapered, dashed, pointer, line) and callouts (filled bubble, outlined bubble, square label, speech balloon), plus boxes, ellipses, highlighter, pen, text, numbered steps and pixelate, with undo and redo. If an arrow or callout goes past the edge of the screenshot, the canvas grows to fit it.
+- **Annotate**: Snagit-style arrows (classic, double, curved, block, tapered, dashed, pointer, line) and callouts (filled bubble, outlined bubble, square label, speech balloon), plus boxes, ellipses, highlighter, pen, text, numbered steps and pixelate, with undo and redo. Everything stays editable: click an annotation to select it, drag it to move it, drag its handles (arrow ends, a callout's pointer, box corners), double-click text or a callout to retype it, and press Delete to remove it. Colour, thickness and style changes apply to whatever is selected, and undo/redo covers every edit. Annotations can start or end outside the screenshot, and the canvas grows to fit them.
 - **Screen video**: record any area with your microphone. The format is your choice: **H.264 MP4** (default; H.264 at CRF 23 + AAC 128 kbps, so roughly 5–15 MB per minute of desktop work), **H.265/HEVC**, **AV1**, **VP9 WebM** or **animated GIF**. GPU encoding (NVIDIA NVENC, Intel Quick Sync, AMD AMF, Apple VideoToolbox) is also available, along with Smaller / Balanced / Best quality and a maximum resolution. Only formats your ffmpeg can actually produce are offered. Recordings are written as crash-safe MKV segments and joined into the MP4 when you finish. You can pause, resume, finish or discard, and there is a countdown before it starts.
 - **Webcam bubble**: puts your camera in a corner of the recorded area. It can be a circle or a rounded square, you can resize it, and you can drag it anywhere. It is recorded along with the screen.
 - **Paste anywhere**: screenshots go to the clipboard as images, and videos and images can be copied as files. Paste them straight into WhatsApp, Teams, Slack, email and so on.
@@ -90,7 +90,7 @@ Run `mycapture --capture` to start a capture from a script, a Stream Deck or a c
 | Moon | Hover to open the menu, click to capture, drag to dock it on another edge |
 | Capture screen | Drag to select an area, click a window to select it, **Enter** for an image, **V** for a video, **Esc** to cancel |
 | Recording bar | Pause/resume, camera, **Finish**, discard; the hotkey also finishes the recording |
-| Editor | `A C R E H P T N B` switch tools (C = callout; drag from the spot to point at, to where the bubble goes), `Ctrl+Z`/`Ctrl+Y` undo/redo, `Ctrl+C` copy, `Ctrl+S` save as |
+| Editor | `V` select/edit, `A C R E H P T N B` drawing tools (C = callout: drag from the spot you're pointing at to where the bubble goes), `Delete` removes the selection, `Ctrl+Z`/`Ctrl+Y` undo/redo, `Ctrl+C` copy, `Ctrl+S` save as |
 
 Captures are stored in:
 
@@ -110,6 +110,13 @@ Captures are stored in:
 app/      Tauri app (Rust): capture, recording, clipboard, upload, windows
 ui/       Plain HTML/CSS/JS for the moon, capture overlay, editor, history, settings, camera
 server/   mycapture-server (axum)
+```
+
+## Tests
+
+```sh
+cargo test -p mycapture          # encoder test for every available video format
+cd tests/ui && npm install && npm test   # headless editor tests (uses local Chrome; set CHROME_PATH)
 ```
 
 ## License

@@ -3,3 +3,5 @@ target/
 server/data/
 app/gen/
 app/bin/ffmpeg.exe
+tests/ui/node_modules/
+tests/ui/out/

@@ -89,6 +89,7 @@
 </header>
 
 <aside id="tools">
+  <button class="t" data-tool="select" title="Select &amp; edit (V)" data-icon="pointer"></button>
   <button class="t on" data-tool="arrow" title="Arrow (A)" data-icon="arrow"></button>
   <button class="t" data-tool="rect" title="Box (R)" data-icon="rect"></button>
   <button class="t" data-tool="ellipse" title="Ellipse (E)" data-icon="ellipse"></button>
@@ -141,7 +142,8 @@ const cv = $('canvas'), ctx = cv.getContext('2d');
 const base = new Image();
 base.crossOrigin = 'anonymous';
 let tool = 'arrow', color = '#ef4444', sizeMult = 1.8;
-let shapes = [], redoStack = [], drawing = null, dirty = false, scale = 1;
+let shapes = [], undoStack = [], redoStack = [], drawing = null, dirty = false, scale = 1;
+let selected = null, drag = null, exporting = false;
 const COLORS = ['#ef4444', '#f59e0b', '#facc15', '#10b981', '#38bdf8', '#2563eb', '#ffffff', '#0f172a'];
 
 $('swatches').innerHTML = COLORS.map(c => `<div class="sw${c === color ? ' on' : ''}" data-c="${c}" style="background:${c}"></div>`).join('');
@@ -150,16 +152,19 @@ $('swatches').addEventListener('click', e => {
   if (!c) return;
   color = c;
   document.querySelectorAll('.sw').forEach(s => s.classList.toggle('on', s.dataset.c === c));
+  if (selected) { snapshot(); selected.color = c; render(); }
 });
 document.querySelectorAll('.sz').forEach(el => el.onclick = () => {
   sizeMult = +el.dataset.size;
   document.querySelectorAll('.sz').forEach(s => s.classList.toggle('on', s === el));
+  if (selected && 'size' in selected) { snapshot(); selected.size = sizeMult; render(); }
 });
 function setTool(t) {
   commitText();
   tool = t;
   document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
-  cv.style.cursor = t === 'text' ? 'text' : 'crosshair';
+  if (t !== 'select' && selected && selected.type !== t) select(null);
+  setCursor(toolCursor());
   renderOpts();
 }
 document.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => setTool(b.dataset.tool));
@@ -195,19 +200,22 @@ const CALLOUT_STYLES = [
 
 function renderOpts() {
   const bar = $('opts');
-  const set = tool === 'arrow' ? ARROW_STYLES : tool === 'callout' ? CALLOUT_STYLES : null;
+  const kind = selected && (selected.type === 'arrow' || selected.type === 'callout') ? selected.type : tool;
+  const set = kind === 'arrow' ? ARROW_STYLES : kind === 'callout' ? CALLOUT_STYLES : null;
   bar.classList.toggle('show', !!set && item?.kind === 'image');
   if (!set) return;
-  const cur = tool === 'arrow' ? arrowStyle : calloutStyle;
-  bar.innerHTML = `<span class="lab">${tool === 'arrow' ? 'Arrow' : 'Callout'}</span>` + set.map(([sid, name, svg]) =>
+  const cur = selected?.type === kind ? (selected.style || set[0][0]) : kind === 'arrow' ? arrowStyle : calloutStyle;
+  bar.innerHTML = `<span class="lab">${kind === 'arrow' ? 'Arrow' : 'Callout'}</span>` + set.map(([sid, name, svg]) =>
     `<button data-style="${sid}" title="${name}" class="${sid === cur ? 'on' : ''}"><svg viewBox="0 0 32 22" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${svg}</svg></button>`).join('');
 }
 $('opts').addEventListener('mousedown', e => e.stopPropagation());
 $('opts').addEventListener('click', e => {
   const b = e.target.closest('[data-style]');
   if (!b) return;
-  if (tool === 'arrow') { arrowStyle = b.dataset.style; store.set('arrowStyle', arrowStyle); }
+  const kind = selected && (selected.type === 'arrow' || selected.type === 'callout') ? selected.type : tool;
+  if (kind === 'arrow') { arrowStyle = b.dataset.style; store.set('arrowStyle', arrowStyle); }
   else { calloutStyle = b.dataset.style; store.set('calloutStyle', calloutStyle); }
+  if (selected?.type === kind) { snapshot(); selected.style = b.dataset.style; render(); }
   renderOpts();
 });
 
@@ -290,40 +298,47 @@ function calloutBox(s) {
   return { x: s.bx - w / 2, y: s.by - h / 2, w, h, fs, pad, lh, lines, tw, tx: s.bx - tw / 2, ty: s.by - textH / 2 };
 }
 
-function calloutPath(c, s, b) {
+function bubblePath(c, s, b) {
   const st = s.style || 'bubble';
-  const cx = s.bx, cy = s.by;
   c.beginPath();
-  if (st === 'round') c.ellipse(cx, cy, b.w / 2, b.h / 2, 0, 0, Math.PI * 2);
+  if (st === 'round') c.ellipse(s.bx, s.by, b.w / 2, b.h / 2, 0, 0, Math.PI * 2);
   else if (st === 'label') c.rect(b.x, b.y, b.w, b.h);
   else c.roundRect(b.x, b.y, b.w, b.h, Math.min(b.h / 2, b.fs * .7));
-  // Tail: a wedge from the bubble centre to the tip, unless the tip is under the bubble.
-  const outside = Math.abs(s.tx - cx) > b.w / 2 || Math.abs(s.ty - cy) > b.h / 2;
-  if (outside) {
-    const ang = Math.atan2(s.ty - cy, s.tx - cx), base = Math.min(b.w, b.h) * .3;
-    const nx = -Math.sin(ang) * base / 2, ny = Math.cos(ang) * base / 2;
-    c.moveTo(cx + nx, cy + ny);
-    c.lineTo(s.tx, s.ty);
-    c.lineTo(cx - nx, cy - ny);
-    c.closePath();
-  }
+}
+
+/** Tail: a wedge from the bubble centre to the tip. False when the tip is under the bubble. */
+function tailPath(c, s, b) {
+  const cx = s.bx, cy = s.by;
+  if (Math.abs(s.tx - cx) <= b.w / 2 && Math.abs(s.ty - cy) <= b.h / 2) return false;
+  const ang = Math.atan2(s.ty - cy, s.tx - cx), base = Math.min(b.w, b.h) * .3;
+  const nx = -Math.sin(ang) * base / 2, ny = Math.cos(ang) * base / 2;
+  c.beginPath();
+  c.moveTo(cx + nx, cy + ny);
+  c.lineTo(s.tx, s.ty);
+  c.lineTo(cx - nx, cy - ny);
+  c.closePath();
+  return true;
 }
 
 function drawCallout(c, s, editing) {
   const b = calloutBox(s), st = s.style || 'bubble';
+  // Bubble and tail are filled separately: as one path their windings can cancel and leave a hole.
   c.save();
   c.shadowColor = 'rgba(0,0,0,.35)'; c.shadowBlur = unit() * 2; c.shadowOffsetY = unit() * .6;
   if (st === 'outline') {
-    // Stroke the merged outline, then fill over it so the tail joins the bubble seamlessly.
+    // Stroke both outlines, then fill over them so the tail joins the bubble seamlessly.
     c.lineWidth = unit() * 1.6 * Math.max(1, s.size * .8);
     c.strokeStyle = s.color;
-    calloutPath(c, s, b); c.stroke();
+    if (tailPath(c, s, b)) c.stroke();
+    bubblePath(c, s, b); c.stroke();
     c.shadowColor = 'transparent';
     c.fillStyle = '#ffffff';
-    calloutPath(c, s, b); c.fill('nonzero');
+    if (tailPath(c, s, b)) c.fill();
+    bubblePath(c, s, b); c.fill();
   } else {
     c.fillStyle = s.color;
-    calloutPath(c, s, b); c.fill('nonzero');
+    if (tailPath(c, s, b)) c.fill();
+    bubblePath(c, s, b); c.fill();
   }
   c.restore();
   if (editing) return;
@@ -456,10 +471,134 @@ function render() {
   ctx.fillRect(0, 0, w, h);
   ctx.setTransform(1, 0, 0, 1, -x0, -y0);
   ctx.drawImage(base, 0, 0);
-  shapes.forEach(s => drawShape(ctx, s));
+  shapes.forEach(s => { if (!s.hidden) drawShape(ctx, s); });
   if (drawing) drawShape(ctx, drawing);
-  $('undo').disabled = !shapes.length;
+  if (selected && !exporting && shapes.includes(selected)) drawSelection(selected);
+  $('undo').disabled = !undoStack.length;
   $('redo').disabled = !redoStack.length;
+}
+
+// ---------- selecting & editing ----------
+function snapshot() {
+  undoStack.push(JSON.stringify(shapes));
+  if (undoStack.length > 200) undoStack.shift();
+  redoStack = [];
+  dirty = true;
+}
+function restore(json) {
+  shapes = JSON.parse(json);
+  select(null);
+  dirty = true;
+  render();
+}
+
+function select(s) {
+  selected = s;
+  renderOpts();
+  render();
+}
+
+/** Grab points for the selected annotation (image coordinates). */
+function handlesOf(s) {
+  switch (s.type) {
+    case 'arrow': return [{ id: 'p1', x: s.x1, y: s.y1 }, { id: 'p2', x: s.x2, y: s.y2 }];
+    case 'rect': case 'ellipse': case 'highlight': case 'blur':
+      return [{ id: 'nw', x: s.x1, y: s.y1 }, { id: 'ne', x: s.x2, y: s.y1 }, { id: 'sw', x: s.x1, y: s.y2 }, { id: 'se', x: s.x2, y: s.y2 }];
+    case 'callout': return [{ id: 'tip', x: s.tx, y: s.ty }];
+  }
+  return [];
+}
+
+function drawSelection(s) {
+  const b = shapeBounds(s), k = 1 / scale;
+  ctx.save();
+  ctx.shadowColor = 'transparent';
+  ctx.lineWidth = 1.5 * k;
+  ctx.setLineDash([5 * k, 4 * k]);
+  ctx.strokeStyle = '#38bdf8';
+  ctx.strokeRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0);
+  ctx.setLineDash([]);
+  for (const h of handlesOf(s)) {
+    ctx.beginPath();
+    ctx.arc(h.x, h.y, 6 * k, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.lineWidth = 2 * k;
+    ctx.strokeStyle = '#0284c7';
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function segDist(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy;
+  const t = l2 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2)) : 0;
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+/** Topmost annotation under the point, if any. */
+function hitShape(p) {
+  const tol = Math.max(8 / scale, unit() * 2);
+  for (let i = shapes.length - 1; i >= 0; i--) {
+    const s = shapes[i];
+    if (s.hidden) continue;
+    if (s.type === 'arrow') {
+      if (s.style === 'curved') {
+        const len = Math.hypot(s.x2 - s.x1, s.y2 - s.y1), ang = Math.atan2(s.y2 - s.y1, s.x2 - s.x1);
+        const m = { x: (s.x1 + s.x2) / 2 - Math.sin(ang) * len * .14, y: (s.y1 + s.y2) / 2 + Math.cos(ang) * len * .14 };
+        if (Math.min(segDist(p, { x: s.x1, y: s.y1 }, m), segDist(p, m, { x: s.x2, y: s.y2 })) <= tol + unit() * s.size) return s;
+      } else if (segDist(p, { x: s.x1, y: s.y1 }, { x: s.x2, y: s.y2 }) <= tol + unit() * s.size * (s.style === 'fat' ? 3 : 1)) return s;
+      continue;
+    }
+    if (s.type === 'pen') {
+      for (let j = 1; j < s.pts.length; j++) {
+        if (segDist(p, { x: s.pts[j - 1][0], y: s.pts[j - 1][1] }, { x: s.pts[j][0], y: s.pts[j][1] }) <= tol + unit() * s.size) return s;
+      }
+      continue;
+    }
+    if (s.type === 'callout') {
+      const b = calloutBox(s);
+      if (p.x >= b.x - tol && p.x <= b.x + b.w + tol && p.y >= b.y - tol && p.y <= b.y + b.h + tol) return s;
+      if (segDist(p, { x: s.bx, y: s.by }, { x: s.tx, y: s.ty }) <= tol) return s;
+      continue;
+    }
+    const b = shapeBounds(s);
+    if (b && p.x >= b.x0 && p.x <= b.x1 && p.y >= b.y0 && p.y <= b.y1) return s;
+  }
+  return null;
+}
+
+function handleAt(s, p) {
+  const r = 10 / scale;
+  return handlesOf(s).find(h => Math.hypot(h.x - p.x, h.y - p.y) <= r)?.id || null;
+}
+
+const MOVE_KEYS = [['x1', 'y1'], ['x2', 'y2'], ['x', 'y'], ['tx', 'ty'], ['bx', 'by']];
+function applyDrag(s, o, p) {
+  const dx = p.x - drag.start.x, dy = p.y - drag.start.y;
+  if (drag.kind === 'move') {
+    for (const [kx, ky] of MOVE_KEYS) if (kx in o) { s[kx] = o[kx] + dx; s[ky] = o[ky] + dy; }
+    if (o.pts) s.pts = o.pts.map(([x, y]) => [x + dx, y + dy]);
+    return;
+  }
+  const h = drag.id;
+  if (h === 'p1') { s.x1 = o.x1 + dx; s.y1 = o.y1 + dy; }
+  else if (h === 'p2') { s.x2 = o.x2 + dx; s.y2 = o.y2 + dy; }
+  else if (h === 'tip') { s.tx = o.tx + dx; s.ty = o.ty + dy; }
+  else {
+    if (h.includes('w')) s.x1 = o.x1 + dx; else s.x2 = o.x2 + dx;
+    if (h.includes('n')) s.y1 = o.y1 + dy; else s.y2 = o.y2 + dy;
+  }
+}
+
+function toolCursor() { return tool === 'text' ? 'text' : tool === 'select' ? 'default' : 'crosshair'; }
+function setCursor(c) { cv.style.cursor = c; $('stage').style.cursor = c; }
+
+function deleteSelected() {
+  if (!selected) return;
+  snapshot();
+  shapes.splice(shapes.indexOf(selected), 1);
+  select(null);
 }
 
 function fit() {
@@ -477,13 +616,27 @@ function pos(e) {
   return { x: (e.clientX - r.left) / scale + origin.x, y: (e.clientY - r.top) / scale + origin.y };
 }
 
-function push(s) { shapes.push(s); redoStack = []; dirty = true; render(); }
+function push(s) { snapshot(); shapes.push(s); selected = s; renderOpts(); render(); }
 
-cv.addEventListener('mousedown', e => {
-  if (e.button !== 0) return;
+$('stage').addEventListener('mousedown', e => {
+  if (e.button !== 0 || item?.kind !== 'image' || e.target === txt || e.target.closest('#opts')) return;
+  e.preventDefault();
   const p = pos(e);
-  if (tool === 'text') { e.preventDefault(); openText(p); return; }
   commitText();
+  // Existing annotations: handles of the selected one, then anything of this kind (or anything with Select).
+  if (selected) {
+    const h = handleAt(selected, p);
+    if (h) { drag = { kind: 'handle', id: h, start: p, orig: JSON.parse(JSON.stringify(selected)), moved: false }; return; }
+  }
+  const hit = hitShape(p);
+  if (hit && (tool === 'select' || hit === selected || hit.type === tool)) {
+    select(hit);
+    drag = { kind: 'move', start: p, orig: JSON.parse(JSON.stringify(hit)), moved: false };
+    return;
+  }
+  select(null);
+  if (tool === 'select') return;
+  if (tool === 'text') { openText(p); return; }
   if (tool === 'step') { push({ type: 'step', x: p.x, y: p.y, n: shapes.filter(s => s.type === 'step').length + 1, color, size: sizeMult }); return; }
   if (tool === 'callout') {
     drawing = { type: 'callout', tx: p.x, ty: p.y, bx: p.x, by: p.y, text: 'Text', style: calloutStyle, color, size: sizeMult };
@@ -494,7 +647,25 @@ cv.addEventListener('mousedown', e => {
     : { type: tool, x1: p.x, y1: p.y, x2: p.x, y2: p.y, color, size: sizeMult, style: tool === 'arrow' ? arrowStyle : undefined };
 });
 addEventListener('mousemove', e => {
-  if (!drawing) return;
+  if (drag) {
+    const p = pos(e);
+    if (!drag.moved) {
+      if (Math.hypot(p.x - drag.start.x, p.y - drag.start.y) * scale < 3) return;
+      drag.moved = true;
+      snapshot();
+    }
+    applyDrag(selected, drag.orig, p);
+    render();
+    return;
+  }
+  if (!drawing) {
+    if (item?.kind !== 'image' || !e.target.closest?.('#stage')) return;
+    const p = pos(e);
+    const h = selected && handleAt(selected, p);
+    const hit = !h && hitShape(p);
+    setCursor(h ? 'grab' : hit && (tool === 'select' || hit === selected || hit.type === tool) ? 'move' : toolCursor());
+    return;
+  }
   const p = pos(e);
   if (drawing.type === 'pen') drawing.pts.push([p.x, p.y]);
   else if (drawing.type === 'callout') { drawing.bx = p.x; drawing.by = p.y; }
@@ -509,6 +680,7 @@ addEventListener('mousemove', e => {
   render();
 });
 addEventListener('mouseup', () => {
+  if (drag) { drag = null; render(); return; }
   if (!drawing) return;
   const d = drawing;
   drawing = null;
@@ -523,19 +695,30 @@ addEventListener('mouseup', () => {
   if (big) push(d); else render();
 });
 
+// Double-click text or a callout to change its words.
+$('stage').addEventListener('dblclick', e => {
+  if (item?.kind !== 'image' || e.target === txt) return;
+  const hit = hitShape(pos(e));
+  if (hit?.type === 'callout') editCallout(hit);
+  else if (hit?.type === 'text') openText({ x: hit.x, y: hit.y }, hit);
+});
+
 // ---------- text ----------
 const txt = $('txt');
 let textAt = null;
-function openText(p) {
+function openText(p, existing = null) {
   commitText();
-  textAt = p;
+  textAt = { x: p.x, y: p.y, edit: existing };
+  if (existing) { existing.hidden = true; select(null); }
   const r = cv.getBoundingClientRect(), sr = $('stage').getBoundingClientRect();
-  const fs = fontPx({ size: sizeMult }) * scale;
+  const fs = fontPx({ size: existing ? existing.size : sizeMult }) * scale;
   Object.assign(txt.style, {
     display: 'block', left: `${r.left - sr.left + (p.x - origin.x) * scale}px`, top: `${r.top - sr.top + (p.y - origin.y) * scale}px`,
-    fontSize: `${fs}px`, color, height: `${fs * 1.3}px`, width: '80px', lineHeight: '1.2', fontWeight: '700', background: '', border: '',
+    fontSize: `${fs}px`, color: existing ? existing.color : color, height: `${fs * 1.3}px`, width: '80px', lineHeight: '1.2', fontWeight: '700', background: '', border: '',
   });
-  txt.value = '';
+  txt.value = existing ? existing.text : '';
+  if (existing) autosize();
+  txt.focus();
   setTimeout(() => txt.focus(), 0);
 }
 function autosize() {
@@ -563,14 +746,30 @@ function placeCalloutEditor() {
 }
 function openCallout(s) {
   commitText();
+  snapshot();
   editingCallout = s;
   shapes.push(s);
-  textAt = { callout: true };
+  selected = s;
+  textAt = { callout: true, isNew: true };
   txt.value = '';
   txt.style.display = 'block';
   render();
   placeCalloutEditor();
+  txt.focus();
   setTimeout(() => txt.focus(), 0);
+}
+function editCallout(s) {
+  commitText();
+  snapshot();
+  editingCallout = s;
+  selected = s;
+  textAt = { callout: true, isNew: false };
+  txt.value = s.text;
+  txt.style.display = 'block';
+  render();
+  placeCalloutEditor();
+  txt.focus();
+  txt.select();
 }
 txt.addEventListener('input', () => {
   if (!editingCallout) return;
@@ -580,13 +779,17 @@ txt.addEventListener('input', () => {
 });
 function commitText() {
   if (textAt?.callout) {
-    const s = editingCallout;
+    const s = editingCallout, isNew = textAt.isNew;
     editingCallout = null;
     textAt = null;
     Object.assign(txt.style, { display: 'none', border: '', background: '' });
     s.text = txt.value.replace(/\s+$/, '');
-    if (!s.text) shapes.splice(shapes.indexOf(s), 1);
-    else { redoStack = []; dirty = true; }
+    if (!s.text) {
+      shapes.splice(shapes.indexOf(s), 1);
+      if (isNew) undoStack.pop();
+      selected = null;
+    }
+    renderOpts();
     render();
     return;
   }
@@ -595,11 +798,28 @@ function commitText() {
   const at = textAt;
   textAt = null;
   txt.style.display = 'none';
+  if (at.edit) {
+    const s = at.edit;
+    delete s.hidden;
+    if (t === s.text) { render(); return; }
+    snapshot();
+    if (t) { s.text = t; select(s); } else { shapes.splice(shapes.indexOf(s), 1); select(null); }
+    return;
+  }
   if (t) push({ type: 'text', x: at.x, y: at.y, text: t, color, size: sizeMult });
 }
 
-function undo() { commitText(); if (shapes.length) { redoStack.push(shapes.pop()); dirty = true; render(); } }
-function redo() { if (redoStack.length) { shapes.push(redoStack.pop()); dirty = true; render(); } }
+function undo() {
+  commitText();
+  if (!undoStack.length) return;
+  redoStack.push(JSON.stringify(shapes));
+  restore(undoStack.pop());
+}
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push(JSON.stringify(shapes));
+  restore(redoStack.pop());
+}
 $('undo').onclick = undo;
 $('redo').onclick = redo;
 
@@ -607,7 +827,11 @@ $('redo').onclick = redo;
 async function ensureSaved() {
   commitText();
   if (item.kind !== 'image' || !dirty) return;
+  exporting = true;
+  render();
   const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+  exporting = false;
+  render();
   const bytes = new Uint8Array(await blob.arrayBuffer());
   await invoke('save_edited', bytes, { headers: { 'x-id': id } });
   dirty = false;
@@ -649,14 +873,16 @@ $('del').onclick = async () => {
 };
 
 addEventListener('keydown', e => {
-  if (document.querySelector('.modal-back')) return;
+  if (document.querySelector('.modal-back') || e.target === txt || textAt) return;
   const mod = e.ctrlKey || e.metaKey;
   if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
   if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
   if (mod && e.key.toLowerCase() === 'c') { e.preventDefault(); (item.kind === 'image' ? $('copy') : $('copyVid')).click(); return; }
   if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); $('saveAs').click(); return; }
   if (mod || item?.kind !== 'image') return;
-  const map = { a: 'arrow', c: 'callout', r: 'rect', e: 'ellipse', h: 'highlight', p: 'pen', t: 'text', n: 'step', b: 'blur' };
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selected) { e.preventDefault(); deleteSelected(); return; }
+  if (e.key === 'Escape' && selected) { select(null); return; }
+  const map = { v: 'select', a: 'arrow', c: 'callout', r: 'rect', e: 'ellipse', h: 'highlight', p: 'pen', t: 'text', n: 'step', b: 'blur' };
   if (map[e.key.toLowerCase()]) setTool(map[e.key.toLowerCase()]);
 });
 
