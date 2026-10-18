@@ -47,7 +47,12 @@
     background-size: 18px 18px;
   }
   #canvas { box-shadow: 0 10px 40px rgba(0, 0, 0, .55); border-radius: 4px; cursor: crosshair; background: #fff; }
-  video { max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 10px 40px rgba(0, 0, 0, .55); background: #000; outline: none; }
+  /* Videos and GIFs fill the stage and letterbox inside it, so the player controls always stay visible. */
+  #video, #gif {
+    position: absolute; left: 20px; right: 20px; top: 20px; bottom: 20px;
+    width: calc(100% - 40px); height: calc(100% - 40px); object-fit: contain; outline: none;
+  }
+  #video { background: transparent; cursor: pointer; }
   #txt {
     position: absolute; display: none; min-width: 60px; background: rgba(255, 255, 255, .06); border: 1px dashed var(--accent);
     outline: none; padding: 0 2px; resize: none; overflow: hidden; font-weight: 700; line-height: 1.2;
@@ -113,7 +118,7 @@
 <main id="stage">
   <canvas id="canvas" class="img-only"></canvas>
   <video id="video" class="vid-only" controls></video>
-  <img id="gif" class="vid-only" alt="" style="display:none;max-width:100%;max-height:100%;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.55)">
+  <img id="gif" class="vid-only" alt="" style="display:none">
   <textarea id="txt" rows="1" spellcheck="false"></textarea>
   <div id="opts"></div>
 </main>
@@ -916,7 +921,22 @@ listen('shared', e => {
       $('gif').src = fileUrl(item.file);
       $('title').textContent = 'Animated GIF';
     } else {
-      $('video').src = fileUrl(item.file);
+      const v = $('video');
+      v.src = fileUrl(item.file);
+      v.addEventListener('loadeddata', () => v.focus(), { once: true });
+      // Click the picture (not the control bar) or press Space to play / pause.
+      v.addEventListener('click', e => {
+        const r = v.getBoundingClientRect();
+        if (e.clientY < r.bottom - 56) { e.preventDefault(); v.paused ? v.play() : v.pause(); }
+      });
+      // Capture phase, so the built-in player doesn't toggle a second time when it has focus.
+      addEventListener('keydown', e => {
+        if (e.code !== 'Space' || document.querySelector('.modal-back')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        v.paused ? v.play() : v.pause();
+      }, true);
+      v.addEventListener('error', () => Modal.error('This video can\'t be played here', 'The preview window can\'t decode this format (H.265/HEVC needs the HEVC Video Extensions from the Microsoft Store). The file itself is fine: use Copy video or Save as… to open it in your usual player.'));
     }
   }
 })();

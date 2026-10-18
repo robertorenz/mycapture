@@ -117,6 +117,7 @@ server/   mycapture-server (axum)
 ```sh
 cargo test -p mycapture          # encoder test for every available video format
 cd tests/ui && npm install && npm test   # headless editor tests (uses local Chrome; set CHROME_PATH)
+TEST_MP4=path/to/recording.mp4 node tests/ui/video.test.js   # video preview fits and plays
 ```
 
 ## License

@@ -952,6 +952,14 @@ pub fn run() {
             if std::env::args().any(|a| a == "--capture") {
                 spawn_capture(&handle);
             }
+            // Development aid: `--editor <id>` opens a capture's preview window directly.
+            #[cfg(debug_assertions)]
+            if let Some(id) = std::env::args().skip_while(|a| a != "--editor").nth(1) {
+                let h = handle.clone();
+                std::thread::spawn(move || {
+                    let _ = open_editor_window(&h, &id);
+                });
+            }
             show_moon(&handle);
             Ok(())
         })
