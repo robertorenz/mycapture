@@ -23,19 +23,19 @@ pub struct AppState {
     pub settings: Mutex<Settings>,
     pub pending: Mutex<Option<capture::Pending>>,
     pub rec: Mutex<Option<record::Recording>>,
-    /// Whether the sun's menu is fanned out.
-    pub sun: Mutex<bool>,
-    /// Cursor and window position when a sun drag started.
-    pub sun_drag: Mutex<Option<(PhysicalPosition<f64>, PhysicalPosition<i32>)>>,
+    /// Whether the moon's menu is fanned out.
+    pub moon: Mutex<bool>,
+    /// Cursor and window position when a moon drag started.
+    pub moon_drag: Mutex<Option<(PhysicalPosition<f64>, PhysicalPosition<i32>)>>,
 }
 
 fn settings_of(app: &AppHandle) -> Settings {
     app.state::<AppState>().settings.lock().unwrap().clone()
 }
 
-fn show_sun(app: &AppHandle) {
-    if settings_of(app).show_sun {
-        if let Some(w) = app.get_webview_window("sun") {
+fn show_moon(app: &AppHandle) {
+    if settings_of(app).show_moon {
+        if let Some(w) = app.get_webview_window("moon") {
             let _ = w.show();
         }
     }
@@ -134,7 +134,7 @@ fn spawn_capture(app: &AppHandle) {
     let app = app.clone();
     std::thread::spawn(move || {
         if let Err(e) = capture::begin(&app) {
-            show_sun(&app);
+            show_moon(&app);
             report_error(&app, &e);
         }
     });
@@ -154,13 +154,13 @@ fn overlay_info(app: AppHandle) -> Result<capture::OverlayInfo, String> {
 fn cancel_capture(app: AppHandle) {
     app.state::<AppState>().pending.lock().unwrap().take();
     capture::close_overlay(&app);
-    show_sun(&app);
+    show_moon(&app);
 }
 
 #[tauri::command(async)]
 async fn finish_image(app: AppHandle, rect: Rect) -> Result<(), String> {
     let item = capture::finish_image(&app, rect)?;
-    show_sun(&app);
+    show_moon(&app);
     notify_history(&app);
     let s = settings_of(&app);
     match s.auto_copy.as_str() {
@@ -309,7 +309,7 @@ fn abort_recording(app: &AppHandle) {
     }
     close_window(app, "frame");
     close_window(app, "recbar");
-    show_sun(app);
+    show_moon(app);
 }
 
 /// Start (or resume) capturing frames.
@@ -353,7 +353,7 @@ fn record_stop(app: AppHandle) -> Result<(), String> {
         close_window(&app, "camera");
     }
     let res = record::finalize(&settings_of(&app), r);
-    show_sun(&app);
+    show_moon(&app);
     let item = res?;
     notify_history(&app);
     open_editor_window(&app, &item.id)
@@ -396,43 +396,43 @@ fn camera_set_size(app: AppHandle, size: u32, shape: String) -> Result<(), Strin
     Ok(())
 }
 
-// ---------- sun ----------
-// The sun docks to a screen edge with only its inner half showing, like the classic Jing.
+// ---------- moon ----------
+// The moon docks to a screen edge with only its inner half showing, like the classic Jing.
 
-const SUN: f64 = 72.0;
-const SUN_PEEK: f64 = 40.0;
-const SUN_EXP_LONG: f64 = 300.0;
-const SUN_EXP_SHORT: f64 = 170.0;
+const MOON: f64 = 72.0;
+const MOON_PEEK: f64 = 40.0;
+const MOON_EXP_LONG: f64 = 300.0;
+const MOON_EXP_SHORT: f64 = 170.0;
 
-/// Size and position the sun window for its edge, collapsed or expanded.
-fn layout_sun(app: &AppHandle, expanded: bool) -> String {
-    let Some(w) = app.get_webview_window("sun") else { return "top".into() };
+/// Size and position the moon window for its edge, collapsed or expanded.
+fn layout_moon(app: &AppHandle, expanded: bool) -> String {
+    let Some(w) = app.get_webview_window("moon") else { return "top".into() };
     let s = settings_of(app);
     let mon = s
-        .sun_x
-        .zip(s.sun_y)
+        .moon_x
+        .zip(s.moon_y)
         .and_then(|(x, y)| app.monitor_from_point(x as f64, y as f64).ok().flatten())
         .or_else(|| app.primary_monitor().ok().flatten());
-    let Some(mon) = mon else { return s.sun_edge };
+    let Some(mon) = mon else { return s.moon_edge };
     let area = mon.work_area();
     let (ax0, ay0, aw, ah) = (area.position.x, area.position.y, area.size.width as i32, area.size.height as i32);
     let sc = mon.scale_factor();
-    let edge = match s.sun_edge.as_str() {
-        "bottom" | "left" | "right" => s.sun_edge.clone(),
+    let edge = match s.moon_edge.as_str() {
+        "bottom" | "left" | "right" => s.moon_edge.clone(),
         _ => "top".to_string(),
     };
     let horizontal = edge == "top" || edge == "bottom";
-    let (long, short) = if expanded { (SUN_EXP_LONG, SUN_EXP_SHORT) } else { (SUN, SUN_PEEK) };
+    let (long, short) = if expanded { (MOON_EXP_LONG, MOON_EXP_SHORT) } else { (MOON, MOON_PEEK) };
     let (lw, lh) = if horizontal { (long, short) } else { (short, long) };
     let (wpx, hpx) = ((lw * sc) as i32, (lh * sc) as i32);
-    // Keep the sun far enough from corners that the expanded fan always fits.
-    let margin = (SUN_EXP_LONG / 2.0 * sc) as i32;
+    // Keep the moon far enough from corners that the expanded fan always fits.
+    let margin = (MOON_EXP_LONG / 2.0 * sc) as i32;
     let along = |v: Option<i32>, lo: i32, len: i32| v.unwrap_or(lo + len / 2).clamp(lo + margin, (lo + len - margin).max(lo + margin));
     let (x, y) = match edge.as_str() {
-        "top" => (along(s.sun_x, ax0, aw) - wpx / 2, ay0),
-        "bottom" => (along(s.sun_x, ax0, aw) - wpx / 2, ay0 + ah - hpx),
-        "left" => (ax0, along(s.sun_y, ay0, ah) - hpx / 2),
-        _ => (ax0 + aw - wpx, along(s.sun_y, ay0, ah) - hpx / 2),
+        "top" => (along(s.moon_x, ax0, aw) - wpx / 2, ay0),
+        "bottom" => (along(s.moon_x, ax0, aw) - wpx / 2, ay0 + ah - hpx),
+        "left" => (ax0, along(s.moon_y, ay0, ah) - hpx / 2),
+        _ => (ax0 + aw - wpx, along(s.moon_y, ay0, ah) - hpx / 2),
     };
     let _ = w.set_size(LogicalSize::new(lw, lh));
     let _ = w.set_position(PhysicalPosition::new(x, y));
@@ -440,42 +440,42 @@ fn layout_sun(app: &AppHandle, expanded: bool) -> String {
 }
 
 #[tauri::command]
-fn sun_expand(app: AppHandle) -> String {
-    *app.state::<AppState>().sun.lock().unwrap() = true;
-    layout_sun(&app, true)
+fn moon_expand(app: AppHandle) -> String {
+    *app.state::<AppState>().moon.lock().unwrap() = true;
+    layout_moon(&app, true)
 }
 
 #[tauri::command]
-fn sun_collapse(app: AppHandle) -> String {
-    *app.state::<AppState>().sun.lock().unwrap() = false;
-    layout_sun(&app, false)
+fn moon_collapse(app: AppHandle) -> String {
+    *app.state::<AppState>().moon.lock().unwrap() = false;
+    layout_moon(&app, false)
 }
 
 #[tauri::command]
-fn sun_drag_begin(app: AppHandle) {
-    let Some(w) = app.get_webview_window("sun") else { return };
+fn moon_drag_begin(app: AppHandle) {
+    let Some(w) = app.get_webview_window("moon") else { return };
     if let (Ok(c), Ok(p)) = (app.cursor_position(), w.outer_position()) {
-        *app.state::<AppState>().sun_drag.lock().unwrap() = Some((c, p));
+        *app.state::<AppState>().moon_drag.lock().unwrap() = Some((c, p));
     }
 }
 
 #[tauri::command]
-fn sun_drag_move(app: AppHandle) {
-    let Some((c0, p0)) = *app.state::<AppState>().sun_drag.lock().unwrap() else { return };
-    let (Some(w), Ok(c)) = (app.get_webview_window("sun"), app.cursor_position()) else { return };
+fn moon_drag_move(app: AppHandle) {
+    let Some((c0, p0)) = *app.state::<AppState>().moon_drag.lock().unwrap() else { return };
+    let (Some(w), Ok(c)) = (app.get_webview_window("moon"), app.cursor_position()) else { return };
     let _ = w.set_position(PhysicalPosition::new(p0.x + (c.x - c0.x) as i32, p0.y + (c.y - c0.y) as i32));
 }
 
-/// After the user drags the sun, dock it to the nearest edge of the monitor it was dropped on.
+/// After the user drags the moon, dock it to the nearest edge of the monitor it was dropped on.
 #[tauri::command]
-fn sun_snap(app: AppHandle) -> String {
-    let Some(w) = app.get_webview_window("sun") else { return "top".into() };
-    *app.state::<AppState>().sun.lock().unwrap() = false;
-    app.state::<AppState>().sun_drag.lock().unwrap().take();
+fn moon_snap(app: AppHandle) -> String {
+    let Some(w) = app.get_webview_window("moon") else { return "top".into() };
+    *app.state::<AppState>().moon.lock().unwrap() = false;
+    app.state::<AppState>().moon_drag.lock().unwrap().take();
     let (Ok(p), Ok(sz)) = (w.outer_position(), w.outer_size()) else { return "top".into() };
-    // The sun's centre sits on the window edge facing the screen edge, expanded or not.
+    // The moon's centre sits on the window edge facing the screen edge, expanded or not.
     let (ww, wh) = (sz.width as i32, sz.height as i32);
-    let (cx, cy) = match settings_of(&app).sun_edge.as_str() {
+    let (cx, cy) = match settings_of(&app).moon_edge.as_str() {
         "bottom" => (p.x + ww / 2, p.y + wh),
         "left" => (p.x, p.y + wh / 2),
         "right" => (p.x + ww, p.y + wh / 2),
@@ -497,12 +497,12 @@ fn sun_snap(app: AppHandle) -> String {
             .unwrap_or("top");
         let state = app.state::<AppState>();
         let mut s = state.settings.lock().unwrap();
-        s.sun_edge = edge.into();
-        s.sun_x = Some(cx);
-        s.sun_y = Some(cy);
+        s.moon_edge = edge.into();
+        s.moon_x = Some(cx);
+        s.moon_y = Some(cy);
         let _ = s.save();
     }
-    layout_sun(&app, false)
+    layout_moon(&app, false)
 }
 
 // ---------- history & sharing ----------
@@ -635,16 +635,16 @@ fn get_settings(app: AppHandle) -> Settings {
 fn set_settings(app: AppHandle, settings: Settings) -> Result<(), String> {
     let old = settings_of(&app);
     let mut new = settings;
-    new.sun_x = old.sun_x;
-    new.sun_y = old.sun_y;
-    new.sun_edge = old.sun_edge;
+    new.moon_x = old.moon_x;
+    new.moon_y = old.moon_y;
+    new.moon_edge = old.moon_edge;
     new.save()?;
     *app.state::<AppState>().settings.lock().unwrap() = new.clone();
     if new.hotkey != old.hotkey {
         register_hotkey(&app)?;
     }
-    if let Some(sun) = app.get_webview_window("sun") {
-        let _ = if new.show_sun { sun.show() } else { sun.hide() };
+    if let Some(moon) = app.get_webview_window("moon") {
+        let _ = if new.show_moon { moon.show() } else { moon.hide() };
     }
     Ok(())
 }
@@ -763,11 +763,11 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     let camera = MenuItem::with_id(app, "camera", "Toggle camera", true, None::<&str>)?;
     let history = MenuItem::with_id(app, "history", "History", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
-    let sun = MenuItem::with_id(app, "sun", "Show / hide the sun", true, None::<&str>)?;
+    let moon = MenuItem::with_id(app, "moon", "Show / hide the moon", true, None::<&str>)?;
     let quit_item = MenuItem::with_id(app, "quit", "Quit myCapture", true, None::<&str>)?;
     let sep = PredefinedMenuItem::separator(app)?;
     let sep2 = PredefinedMenuItem::separator(app)?;
-    let menu = Menu::with_items(app, &[&capture, &camera, &sep, &history, &settings, &sun, &sep2, &quit_item])?;
+    let menu = Menu::with_items(app, &[&capture, &camera, &sep, &history, &settings, &moon, &sep2, &quit_item])?;
     TrayIconBuilder::with_id("main")
         .icon(app.default_window_icon().cloned().expect("icon"))
         .tooltip("myCapture — click to capture")
@@ -784,13 +784,13 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
             "settings" => {
                 let _ = open_settings(app.clone());
             }
-            "sun" => {
+            "moon" => {
                 let state = app.state::<AppState>();
                 let mut s = state.settings.lock().unwrap();
-                s.show_sun = !s.show_sun;
+                s.show_moon = !s.show_moon;
                 let _ = s.save();
-                if let Some(w) = app.get_webview_window("sun") {
-                    let _ = if s.show_sun { w.show() } else { w.hide() };
+                if let Some(w) = app.get_webview_window("moon") {
+                    let _ = if s.show_moon { w.show() } else { w.hide() };
                 }
             }
             "quit" => quit(app.clone()),
@@ -823,8 +823,8 @@ pub fn run() {
             settings: Mutex::new(Settings::load()),
             pending: Mutex::new(None),
             rec: Mutex::new(None),
-            sun: Mutex::new(false),
-            sun_drag: Mutex::new(None),
+            moon: Mutex::new(false),
+            moon_drag: Mutex::new(None),
         })
         .register_asynchronous_uri_scheme_protocol("mycap", |ctx, req, responder| {
             let app = ctx.app_handle().clone();
@@ -843,11 +843,11 @@ pub fn run() {
             record_cancel,
             toggle_camera,
             camera_set_size,
-            sun_expand,
-            sun_collapse,
-            sun_snap,
-            sun_drag_begin,
-            sun_drag_move,
+            moon_expand,
+            moon_collapse,
+            moon_snap,
+            moon_drag_begin,
+            moon_drag_move,
             history_list,
             history_get,
             history_delete,
@@ -875,8 +875,8 @@ pub fn run() {
             if let Err(e) = register_hotkey(&handle) {
                 eprintln!("{e}");
             }
-            layout_sun(&handle, false);
-            show_sun(&handle);
+            layout_moon(&handle, false);
+            show_moon(&handle);
             Ok(())
         })
         .build(tauri::generate_context!())

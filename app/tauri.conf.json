@@ -10,8 +10,8 @@
     "security": { "csp": null },
     "windows": [
       {
-        "label": "sun",
-        "url": "sun.html",
+        "label": "moon",
+        "url": "moon.html",
         "title": "myCapture",
         "width": 72,
         "height": 40,
@@ -32,6 +32,8 @@
     "active": true,
     "targets": "all",
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
-    "macOS": { "infoPlist": "Info.plist" }
+    "macOS": { "infoPlist": "Info.plist", "signingIdentity": "-" },
+    "shortDescription": "Jing-style screen capture",
+    "category": "Productivity"
   }
 }

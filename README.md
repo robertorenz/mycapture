@@ -2,9 +2,9 @@
 
 A Jing-style screen capture tool written in Rust ([Tauri 2](https://tauri.app)), for Windows, macOS and Linux.
 
-A little sun sits docked on the edge of your screen, half showing. Hover it and three rays pop out: **Capture**, **History** and **More**.
+A shiny little moon peeks out from the edge of your screen, half showing. Hover it and three buttons pop out: **Capture**, **History** and **More**.
 
-![sun](app/icons/128x128.png)
+![moon](app/icons/128x128.png)
 
 ## Features
 
@@ -15,7 +15,7 @@ A little sun sits docked on the edge of your screen, half showing. Hover it and 
 - **Paste anywhere**: screenshots go to the clipboard as images, and videos and images can be copied as files. Paste them straight into WhatsApp, Teams, Slack, email and so on.
 - **Share links**: upload to the bundled self-hosted server, to S3-compatible storage (Cloudflare R2, AWS S3, Backblaze B2, MinIO) or to any multipart upload endpoint. The link is copied to your clipboard.
 - **History** of every capture, with copy, share and delete.
-- Global hotkey (default `Ctrl/⌘+Shift+J`), a tray icon, and a dockable sun you can drag to the top, bottom, left or right edge of any monitor.
+- Global hotkey (default `Ctrl/⌘+Shift+J`), a tray icon, and a dockable moon you can drag to the top, bottom, left or right edge of any monitor.
 
 ## Requirements
 
@@ -72,7 +72,7 @@ To connect the app, open Settings → Sharing, choose **myCapture server**, and 
 
 | Where | Action |
 | --- | --- |
-| Sun | Hover to open the menu, click to capture, drag to dock it on another edge |
+| Moon | Hover to open the menu, click to capture, drag to dock it on another edge |
 | Capture screen | Drag to select an area, click a window to select it, **Enter** for an image, **V** for a video, **Esc** to cancel |
 | Recording bar | Pause/resume, camera, **Finish**, discard; the hotkey also finishes the recording |
 | Editor | `A R E H P T N B` switch tools, `Ctrl+Z`/`Ctrl+Y` undo/redo, `Ctrl+C` copy, `Ctrl+S` save as |
@@ -93,7 +93,7 @@ Captures are stored in:
 
 ```
 app/      Tauri app (Rust): capture, recording, clipboard, upload, windows
-ui/       Plain HTML/CSS/JS for the sun, capture overlay, editor, history, settings, camera
+ui/       Plain HTML/CSS/JS for the moon, capture overlay, editor, history, settings, camera
 server/   mycapture-server (axum)
 ```
 

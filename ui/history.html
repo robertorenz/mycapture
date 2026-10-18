@@ -46,7 +46,7 @@
 </head>
 <body>
 <header>
-  <img src="sun.png" alt="">
+  <img src="moon.png" alt="">
   <h1>History</h1>
   <div class="seg" id="filter">
     <button class="on" data-f="all">All</button>
@@ -68,8 +68,8 @@ let items = [], filter = 'all', hotkey = '';
 function render() {
   const list = items.filter(i => filter === 'all' || i.kind === filter);
   if (!list.length) {
-    main.innerHTML = `<div class="empty"><div><img src="sun.png" alt=""><h2>No captures yet</h2>
-      <p>Hover the sun and pick <b>Capture</b>, or press <kbd>${esc(hotkey.replace('CommandOrControl', /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl'))}</kbd>.</p></div></div>`;
+    main.innerHTML = `<div class="empty"><div><img src="moon.png" alt=""><h2>No captures yet</h2>
+      <p>Hover the moon and pick <b>Capture</b>, or press <kbd>${esc(hotkey.replace('CommandOrControl', /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl'))}</kbd>.</p></div></div>`;
     return;
   }
   main.innerHTML = `<div class="grid">${list.map(i => `

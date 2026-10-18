@@ -10,33 +10,33 @@
   #stage { position: absolute; inset: 0; transition: opacity .08s; }
   body.busy #stage { opacity: 0; }
 
-  /* The sun is centred on the docked screen edge, so only its inner half is visible. */
-  #sun { position: absolute; width: 72px; height: 72px; display: grid; place-items: center; cursor: pointer; z-index: 2; }
-  body.top #sun { left: calc(50% - 36px); top: -36px; }
-  body.bottom #sun { left: calc(50% - 36px); bottom: -36px; }
-  body.left #sun { top: calc(50% - 36px); left: -36px; }
-  body.right #sun { top: calc(50% - 36px); right: -36px; }
-  #sun img {
+  /* The moon is centred on the docked screen edge, so only its inner half is visible. */
+  #moon { position: absolute; width: 72px; height: 72px; display: grid; place-items: center; cursor: pointer; z-index: 2; }
+  body.top #moon { left: calc(50% - 36px); top: -36px; }
+  body.bottom #moon { left: calc(50% - 36px); bottom: -36px; }
+  body.left #moon { top: calc(50% - 36px); left: -36px; }
+  body.right #moon { top: calc(50% - 36px); right: -36px; }
+  #moon img {
     width: 70px; height: 70px; pointer-events: none;
-    filter: drop-shadow(0 1px 4px rgba(0, 0, 0, .35));
-    animation: spin 40s linear infinite;
+    filter: drop-shadow(0 1px 2px rgba(15, 23, 42, .45)) drop-shadow(0 0 6px rgba(190, 220, 255, .6));
+    animation: shimmer 4s ease-in-out infinite;
     transition: transform .35s cubic-bezier(.3, 1.6, .5, 1);
   }
-  #sun:hover img, body.open #sun img { transform: scale(1.1); }
-  @keyframes spin { to { rotate: 360deg; } }
+  #moon:hover img, body.open #moon img { transform: scale(1.1); }
+  @keyframes shimmer { 50% { filter: drop-shadow(0 1px 2px rgba(15, 23, 42, .45)) drop-shadow(0 0 12px rgba(200, 228, 255, .95)) brightness(1.08); } }
 
   .ray {
     position: absolute; width: 50px; height: 50px; margin: -25px 0 0 -25px;
     left: var(--sx); top: var(--sy);
     border-radius: 50%; display: grid; place-items: center; cursor: pointer;
     background: radial-gradient(circle at 35% 30%, #2b3a5c, #141e33 70%);
-    border: 2px solid rgba(251, 191, 36, .85); color: #fde68a;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, .45), 0 0 0 4px rgba(245, 158, 11, .12);
+    border: 2px solid rgba(214, 230, 255, .9); color: #e3edff;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, .45), 0 0 0 4px rgba(170, 205, 255, .14);
     transform: scale(.2); opacity: 0; pointer-events: none;
     transition: left .28s cubic-bezier(.3, 1.4, .5, 1), top .28s cubic-bezier(.3, 1.4, .5, 1), transform .28s cubic-bezier(.3, 1.4, .5, 1), opacity .15s, background .15s;
   }
   .ray svg.i { width: 22px; height: 22px; }
-  .ray:hover { background: radial-gradient(circle at 35% 30%, #fbbf24, #d97706 75%); color: #1a1203; border-color: #fde68a; }
+  .ray:hover { background: radial-gradient(circle at 35% 30%, #ffffff, #b9cdf0 75%); color: #0b1220; border-color: #ffffff; }
   .ray .lbl {
     position: absolute; top: 52px; left: 50%; transform: translateX(-50%);
     font-size: 11px; font-weight: 600; color: #fff; white-space: nowrap; letter-spacing: .02em;
@@ -48,7 +48,7 @@
 </head>
 <body class="top">
 <div id="stage">
-  <div id="sun"><img src="sun.png" alt="myCapture"></div>
+  <div id="moon"><img src="moon.png" alt="myCapture"></div>
 
   <div class="ray main" data-act="capture"><span data-icon="crosshair"></span><span class="lbl">Capture</span></div>
   <div class="ray main" data-act="history"><span data-icon="history"></span><span class="lbl">History</span></div>
@@ -56,14 +56,14 @@
 
   <div class="ray extra" data-act="camera"><span data-icon="webcam"></span><span class="lbl">Camera</span></div>
   <div class="ray extra" data-act="settings"><span data-icon="settings"></span><span class="lbl">Settings</span></div>
-  <div class="ray extra" data-act="hide"><span data-icon="eyeoff"></span><span class="lbl">Hide sun</span></div>
+  <div class="ray extra" data-act="hide"><span data-icon="eyeoff"></span><span class="lbl">Hide moon</span></div>
   <div class="ray extra" data-act="quit"><span data-icon="power"></span><span class="lbl">Quit</span></div>
 </div>
 <script src="shared.js"></script>
 <script>
 hydrateIcons();
 const body = document.body;
-const sun = document.getElementById('sun');
+const moon = document.getElementById('moon');
 let expanded = false, more = false, leaveTimer = null, edge = 'top', dragging = false;
 
 function setEdge(e) {
@@ -72,7 +72,7 @@ function setEdge(e) {
   body.classList.add(e);
 }
 
-// Fan the buttons out from the sun, away from the docked edge.
+// Fan the buttons out from the moon, away from the docked edge.
 function layout() {
   const W = innerWidth, H = innerHeight;
   const [cx, cy, dx, dy] = {
@@ -103,7 +103,7 @@ async function expand() {
   if (expanded || dragging) return;
   expanded = true;
   body.classList.add('busy');
-  setEdge(await invoke('sun_expand'));
+  setEdge(await invoke('moon_expand'));
   requestAnimationFrame(() => {
     layout();
     body.classList.remove('busy');
@@ -120,55 +120,55 @@ async function collapse() {
   await new Promise(r => setTimeout(r, 160));
   if (expanded) return;
   body.classList.add('busy');
-  setEdge(await invoke('sun_collapse'));
+  setEdge(await invoke('moon_collapse'));
   requestAnimationFrame(() => body.classList.remove('busy'));
 }
 
-sun.addEventListener('mouseenter', () => { clearTimeout(leaveTimer); leaveTimer = setTimeout(expand, 140); });
+moon.addEventListener('mouseenter', () => { clearTimeout(leaveTimer); leaveTimer = setTimeout(expand, 140); });
 document.documentElement.addEventListener('mouseleave', () => {
   clearTimeout(leaveTimer);
   leaveTimer = setTimeout(collapse, 450);
 });
 document.addEventListener('mousemove', () => { if (expanded) clearTimeout(leaveTimer); });
 
-// Drag the sun anywhere; when dropped it docks to the nearest screen edge. A plain click captures.
+// Drag the moon anywhere; when dropped it docks to the nearest screen edge. A plain click captures.
 let down = null, moved = false, movePending = false;
-sun.addEventListener('pointerdown', e => {
+moon.addEventListener('pointerdown', e => {
   if (e.button !== 0) return;
   down = { x: e.screenX, y: e.screenY };
   moved = false;
-  sun.setPointerCapture(e.pointerId);
+  moon.setPointerCapture(e.pointerId);
 });
-sun.addEventListener('pointermove', async e => {
+moon.addEventListener('pointermove', async e => {
   if (!down) return;
   if (!moved && Math.hypot(e.screenX - down.x, e.screenY - down.y) > 4) {
     moved = true;
     dragging = true;
     clearTimeout(leaveTimer);
-    // Drag the window as it is; sun_snap docks and collapses it on drop.
+    // Drag the window as it is; moon_snap docks and collapses it on drop.
     expanded = false;
     more = false;
     body.classList.remove('open');
     document.querySelectorAll('.ray').forEach(el => el.classList.remove('on'));
-    await invoke('sun_drag_begin');
+    await invoke('moon_drag_begin');
   }
   if (moved && !movePending) {
     movePending = true;
-    await invoke('sun_drag_move');
+    await invoke('moon_drag_move');
     movePending = false;
   }
 });
-sun.addEventListener('pointerup', async e => {
+moon.addEventListener('pointerup', async e => {
   if (!down) return;
   down = null;
-  sun.releasePointerCapture(e.pointerId);
+  moon.releasePointerCapture(e.pointerId);
   if (moved) {
-    setEdge(await invoke('sun_snap'));
+    setEdge(await invoke('moon_snap'));
     dragging = false;
   }
 });
 
-sun.addEventListener('click', async () => {
+moon.addEventListener('click', async () => {
   if (moved) { moved = false; return; }
   if (more) { more = false; showSet(); return; }
   await collapse();
@@ -186,13 +186,13 @@ document.querySelectorAll('.ray').forEach(el => el.addEventListener('click', asy
   if (act === 'camera') invoke('toggle_camera');
   if (act === 'hide') {
     const s = await invoke('get_settings');
-    s.show_sun = false;
+    s.show_moon = false;
     await invoke('set_settings', { settings: s });
   }
   if (act === 'quit') invoke('quit');
 }));
 
-invoke('get_settings').then(s => setEdge(s.sun_edge || 'top'));
+invoke('get_settings').then(s => setEdge(s.moon_edge || 'top'));
 </script>
 </body>
 </html>

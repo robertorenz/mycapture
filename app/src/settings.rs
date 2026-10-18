@@ -60,12 +60,12 @@ pub struct Settings {
     pub countdown: u32,
     /// What to put on the clipboard right after a screenshot: "none" | "image" | "link"
     pub auto_copy: String,
-    pub show_sun: bool,
-    /// Screen edge the sun docks to: "top" | "bottom" | "left" | "right"
-    pub sun_edge: String,
-    /// Last drop point of the sun (physical px); picks the monitor and the spot along the edge.
-    pub sun_x: Option<i32>,
-    pub sun_y: Option<i32>,
+    pub show_moon: bool,
+    /// Screen edge the moon docks to: "top" | "bottom" | "left" | "right"
+    pub moon_edge: String,
+    /// Last drop point of the moon (physical px); picks the monitor and the spot along the edge.
+    pub moon_x: Option<i32>,
+    pub moon_y: Option<i32>,
     pub upload: UploadSettings,
 }
 
@@ -82,10 +82,10 @@ impl Default for Settings {
             camera_shape: "circle".into(),
             countdown: 3,
             auto_copy: "image".into(),
-            show_sun: true,
-            sun_edge: "top".into(),
-            sun_x: None,
-            sun_y: None,
+            show_moon: true,
+            moon_edge: "top".into(),
+            moon_x: None,
+            moon_y: None,
             upload: UploadSettings::default(),
         }
     }

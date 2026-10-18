@@ -127,7 +127,7 @@ pub fn encode_fast_png(img: &image::RgbaImage) -> Vec<u8> {
     out
 }
 
-/// Hide the sun, freeze the screen and open the selection overlay.
+/// Hide the moon, freeze the screen and open the selection overlay.
 pub fn begin(app: &AppHandle) -> Result<(), String> {
     let state = app.state::<AppState>();
     if state.rec.lock().unwrap().is_some() {
@@ -137,8 +137,8 @@ pub fn begin(app: &AppHandle) -> Result<(), String> {
         let _ = w.set_focus();
         return Ok(());
     }
-    if let Some(sun) = app.get_webview_window("sun") {
-        let _ = sun.hide();
+    if let Some(moon) = app.get_webview_window("moon") {
+        let _ = moon.hide();
     }
     std::thread::sleep(std::time::Duration::from_millis(180));
     let pending = grab(app)?;
