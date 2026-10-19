@@ -5,3 +5,6 @@ app/gen/
 app/bin/ffmpeg.exe
 tests/ui/node_modules/
 tests/ui/out/
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
