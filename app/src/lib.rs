@@ -1,5 +1,6 @@
 mod capture;
 mod clip;
+mod cloud;
 mod codec;
 mod history;
 #[cfg(windows)]
@@ -664,6 +665,39 @@ fn open_url(app: AppHandle, url: String) -> Result<(), String> {
     app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
 
+// ---------- cloud drives ----------
+
+#[derive(Serialize)]
+struct CloudInfo {
+    id: &'static str,
+    account: Option<String>,
+    /// This build has its own app key, so no setup is needed.
+    builtin: bool,
+}
+
+#[tauri::command]
+fn cloud_status() -> Vec<CloudInfo> {
+    let accounts = cloud::accounts();
+    cloud::ALL
+        .iter()
+        .map(|p| CloudInfo { id: p.id(), account: accounts.get(p.id()).cloned(), builtin: p.has_builtin() })
+        .collect()
+}
+
+/// Sign in through the browser; returns the account name.
+#[tauri::command]
+async fn cloud_connect(app: AppHandle, provider: String) -> Result<String, String> {
+    let p = cloud::Provider::from_id(&provider).ok_or("Unknown service")?;
+    let cfg = settings_of(&app).upload;
+    let opener = app.clone();
+    cloud::connect(p, &cfg, move |url| opener.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())).await
+}
+
+#[tauri::command]
+fn cloud_disconnect(provider: String) -> Result<(), String> {
+    cloud::disconnect(cloud::Provider::from_id(&provider).ok_or("Unknown service")?)
+}
+
 // ---------- settings ----------
 
 #[tauri::command]
@@ -941,6 +975,9 @@ pub fn run() {
             open_settings,
             open_captures_folder,
             open_url,
+            cloud_status,
+            cloud_connect,
+            cloud_disconnect,
             get_settings,
             set_settings,
             check_ffmpeg,

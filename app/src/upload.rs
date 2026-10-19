@@ -35,7 +35,10 @@ pub async fn upload(cfg: &UploadSettings, file: &Path, thumb: Option<&Path>) -> 
         "server" => upload_server(cfg, file, thumb).await,
         "http" => upload_http(cfg, file).await,
         "s3" => upload_s3(cfg, file).await,
-        _ => Err("No upload destination is configured yet. Open Settings → Sharing to pick one.".into()),
+        id => match crate::cloud::Provider::from_id(id) {
+            Some(p) => crate::cloud::upload(p, file, mime_for(file)).await,
+            None => Err("No upload destination is configured yet. Open Settings → Sharing to pick one.".into()),
+        },
     }
 }
 

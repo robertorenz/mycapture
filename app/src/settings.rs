@@ -4,7 +4,7 @@ use std::path::PathBuf;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct UploadSettings {
-    /// "none" | "server" | "s3" | "http"
+    /// "none" | "dropbox" | "onedrive" | "gdrive" | "server" | "s3" | "http"
     pub provider: String,
     pub server_url: String,
     pub server_token: String,
@@ -22,6 +22,11 @@ pub struct UploadSettings {
     pub http_headers: String,
     /// Dotted JSON path to the URL in the response (e.g. `data.link`); empty = whole body.
     pub http_url_path: String,
+    /// Own OAuth apps for the cloud drives (empty = the key built into this release).
+    pub dropbox_app_key: String,
+    pub onedrive_client_id: String,
+    pub gdrive_client_id: String,
+    pub gdrive_client_secret: String,
 }
 
 impl Default for UploadSettings {
@@ -42,6 +47,10 @@ impl Default for UploadSettings {
             http_field: "file".into(),
             http_headers: String::new(),
             http_url_path: String::new(),
+            dropbox_app_key: String::new(),
+            onedrive_client_id: String::new(),
+            gdrive_client_id: String::new(),
+            gdrive_client_secret: String::new(),
         }
     }
 }

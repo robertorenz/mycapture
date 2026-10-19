@@ -13,7 +13,7 @@ A shiny little moon peeks out from the edge of your screen, half showing. Hover 
 - **Screen video**: record any area with your microphone and the desktop sound (whatever your speakers play), mixed into one track. Each can be switched on or off in Settings. On Windows the screen is captured with Desktop Duplication (GPU), so recordings keep a steady frame rate. The format is your choice: **H.264 MP4** (default; H.264 at CRF 23 + AAC 128 kbps, so roughly 5–15 MB per minute of desktop work), **H.265/HEVC**, **AV1**, **VP9 WebM** or **animated GIF**. GPU encoding (NVIDIA NVENC, Intel Quick Sync, AMD AMF, Apple VideoToolbox) is also available, along with Smaller / Balanced / Best quality and a maximum resolution. Only formats your ffmpeg can actually produce are offered. Recordings are written as crash-safe MKV segments and joined into the MP4 when you finish. You can pause, resume, finish or discard, and there is a countdown before it starts.
 - **Webcam bubble**: puts your camera in a corner of the recorded area. It can be a circle or a rounded square, you can resize it, and you can drag it anywhere. It is recorded along with the screen.
 - **Paste anywhere**: screenshots go to the clipboard as images, and videos and images can be copied as files. Paste them straight into WhatsApp, Teams, Slack, email and so on.
-- **Share links**: upload to the bundled self-hosted server, to S3-compatible storage (Cloudflare R2, AWS S3, Backblaze B2, MinIO) or to any multipart upload endpoint. The link is copied to your clipboard.
+- **Share links**: upload to **Dropbox**, **OneDrive** or **Google Drive** (sign in once in your browser), to the bundled self-hosted server, to S3-compatible storage (Cloudflare R2, AWS S3, Backblaze B2, MinIO) or to any multipart upload endpoint. The link is copied to your clipboard.
 - **History** of every capture, with copy, share and delete.
 - Global hotkey (default `Ctrl/⌘+Shift+J`), a tray icon, and a dockable moon you can drag to the top, bottom, left or right edge of any monitor.
 
@@ -57,6 +57,18 @@ To ship ffmpeg inside the Windows installer, as the release workflow does, put `
 To cut a release, bump the version in `app/tauri.conf.json` and both `Cargo.toml` files, then push a tag such as `v0.2.0`. GitHub Actions builds every installer and attaches it to a draft release.
 
 GitHub Actions builds the app and the server on all three platforms on every push.
+
+## Cloud drives (Dropbox, OneDrive, Google Drive)
+
+Open Settings → Sharing, pick the service and click **Connect**. Your browser opens the service's sign-in page and then returns to myCapture on `http://localhost:53682/`. Captures go into a `myCapture` folder and are shared with a view-only link. Sign-ins are stored in `cloud.json` next to `settings.json`, not in the settings file itself.
+
+Each service needs an OAuth app registration. A release build picks the keys up from these environment variables (GitHub secrets in the release workflow): `MYCAPTURE_DROPBOX_KEY`, `MYCAPTURE_ONEDRIVE_CLIENT_ID`, `MYCAPTURE_GDRIVE_CLIENT_ID` and `MYCAPTURE_GDRIVE_SECRET`. If a key isn't built in, the Sharing page shows step-by-step instructions for registering your own app and a field to paste its key.
+
+| Service | Register at | Redirect URI | Permissions |
+| --- | --- | --- | --- |
+| Dropbox | dropbox.com/developers/apps (Scoped access, App folder) | `http://localhost:53682/` | `files.content.write`, `sharing.write` |
+| OneDrive | Microsoft Entra → App registrations (any org + personal accounts) | Public client: `http://localhost` | `Files.ReadWrite`, `User.Read`, `offline_access` (asked at sign-in) |
+| Google Drive | Google Cloud console → Credentials → OAuth client ID, type Desktop app; enable the Drive API | none needed | `drive.file` (only files myCapture creates) |
 
 ## Sharing server
 

@@ -34,6 +34,14 @@
   .prov b { display: block; margin-bottom: 3px; }
   .prov span { font-size: 12px; color: var(--muted); }
   .prov.on { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245, 158, 11, .15); }
+  .acct.on { color: var(--ok); }
+  .ownapp { border-top: 1px solid var(--line); padding: 12px 0 4px; }
+  .ownapp summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--muted); }
+  .ownapp summary:hover { color: var(--text); }
+  .ownapp .steps { margin: 4px 0 0; padding-left: 20px; font-size: 12.5px; color: var(--muted); line-height: 1.7; }
+  .ownapp .steps b { color: var(--text); font-weight: 600; }
+  .ownapp a, .ownapp code { user-select: text; }
+  .ownapp a { color: var(--accent); }
   .pane { display: none; }
   .pane.on { display: block; }
   .note { font-size: 12.5px; color: var(--muted); padding: 10px 0 14px; }
@@ -175,12 +183,54 @@
     <p>Where “Share link” uploads your captures. The link is copied so you can paste it into WhatsApp, Teams, Slack or email.</p>
     <div class="providers" id="providers">
       <button class="prov" data-p="none"><b>Off</b><span>Copy &amp; paste only</span></button>
+      <button class="prov" data-p="dropbox"><b>Dropbox</b><span>Sign in with your account</span></button>
+      <button class="prov" data-p="onedrive"><b>OneDrive</b><span>Personal, work or school</span></button>
+      <button class="prov" data-p="gdrive"><b>Google Drive</b><span>Sign in with Google</span></button>
       <button class="prov" data-p="server"><b>myCapture server</b><span>Self-hosted, included</span></button>
       <button class="prov" data-p="s3"><b>S3 storage</b><span>R2, AWS, B2, MinIO</span></button>
       <button class="prov" data-p="http"><b>Custom</b><span>Any upload endpoint</span></button>
     </div>
     <div class="card">
       <div class="pane" data-pane="none"><div class="note">Sharing is off. You can still copy images and video files and paste them straight into chat apps.</div></div>
+      <div class="pane" data-pane="dropbox">
+        <div class="row">
+          <div class="lab"><b>Account</b><span class="acct" data-acct="dropbox">Not connected</span></div>
+          <div class="ctl"><button class="btn primary conn" data-c="dropbox">Connect</button></div>
+        </div>
+        <div class="note">Captures are saved in a <code>myCapture</code> folder in your Dropbox and shared with a view-only link.</div>
+        <details class="ownapp" data-own="dropbox">
+          <summary>Use your own Dropbox app</summary>
+          <div class="note builtin-note">This copy of myCapture has no Dropbox app key built in, so set one up once (about 5 minutes):</div>
+          <ol class="steps"><li>Go to <a href="#" data-url="https://www.dropbox.com/developers/apps">dropbox.com/developers/apps</a> and choose <b>Create app</b>: Scoped access, <b>App folder</b>.</li><li>On the <b>Permissions</b> tab tick <code>files.content.write</code> and <code>sharing.write</code>, then <b>Submit</b>.</li><li>On the <b>Settings</b> tab add the redirect URI <code>http://localhost:53682/</code>.</li><li>Copy the <b>App key</b> below, save, and click Connect.</li></ol>
+          <div class="grid2"><label class="full">App key<input type="text" data-k="upload.dropbox_app_key" placeholder="e.g. a1b2c3d4e5f6g7h"></label></div>
+        </details>
+      </div>
+      <div class="pane" data-pane="onedrive">
+        <div class="row">
+          <div class="lab"><b>Account</b><span class="acct" data-acct="onedrive">Not connected</span></div>
+          <div class="ctl"><button class="btn primary conn" data-c="onedrive">Connect</button></div>
+        </div>
+        <div class="note">Captures are saved in a <code>myCapture</code> folder in your OneDrive and shared with a view-only link.</div>
+        <details class="ownapp" data-own="onedrive">
+          <summary>Use your own OneDrive app</summary>
+          <div class="note builtin-note">This copy of myCapture has no OneDrive app key built in, so set one up once (about 5 minutes):</div>
+          <ol class="steps"><li>Open <a href="#" data-url="https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade">App registrations</a> (Microsoft Entra) and choose <b>New registration</b>.</li><li>Supported accounts: <b>any organizational directory and personal Microsoft accounts</b>.</li><li>Redirect URI: platform <b>Public client/native (mobile &amp; desktop)</b>, value <code>http://localhost</code>.</li><li>Copy the <b>Application (client) ID</b> below, save, and click Connect.</li></ol>
+          <div class="grid2"><label class="full">Application (client) ID<input type="text" data-k="upload.onedrive_client_id" placeholder="00000000-0000-0000-0000-000000000000"></label></div>
+        </details>
+      </div>
+      <div class="pane" data-pane="gdrive">
+        <div class="row">
+          <div class="lab"><b>Account</b><span class="acct" data-acct="gdrive">Not connected</span></div>
+          <div class="ctl"><button class="btn primary conn" data-c="gdrive">Connect</button></div>
+        </div>
+        <div class="note">Captures are saved in a <code>myCapture</code> folder in your Google Drive and shared with a view-only link.</div>
+        <details class="ownapp" data-own="gdrive">
+          <summary>Use your own Google Drive app</summary>
+          <div class="note builtin-note">This copy of myCapture has no Google Drive app key built in, so set one up once (about 5 minutes):</div>
+          <ol class="steps"><li>In the <a href="#" data-url="https://console.cloud.google.com/apis/library/drive.googleapis.com">Google Cloud console</a> create a project and <b>enable the Google Drive API</b>.</li><li>Set up the <b>OAuth consent screen</b> (External) and add your Google account as a test user.</li><li>Under <b>Credentials</b> create an <b>OAuth client ID</b> of type <b>Desktop app</b>.</li><li>Copy the <b>Client ID</b> and <b>Client secret</b> below, save, and click Connect.</li></ol>
+          <div class="grid2"><label class="full">Client ID<input type="text" data-k="upload.gdrive_client_id" placeholder="….apps.googleusercontent.com"></label><label class="full">Client secret<input type="password" data-k="upload.gdrive_client_secret"></label></div>
+        </details>
+      </div>
       <div class="pane" data-pane="server">
         <div class="grid2">
           <label class="full">Server URL<input type="url" data-k="upload.server_url" placeholder="https://share.example.com"></label>
@@ -219,7 +269,7 @@
     <h2>About myCapture</h2>
     <p>A tribute to TechSmith's classic Jing — the launcher, quick captures, quick sharing.</p>
     <div class="card">
-      <div class="row"><div class="lab"><b>Version</b><span>0.2.4</span></div></div>
+      <div class="row"><div class="lab"><b>Version</b><span id="version"></span></div></div>
       <div class="row"><div class="lab"><b>Built with</b><span>Rust, Tauri 2, xcap, ffmpeg</span></div></div>
       <div class="row"><div class="lab"><b>Tips</b><span>Click a window to grab it whole · drag the moon to move it · Enter = image, V = video in the capture screen.</span></div></div>
     </div>
@@ -361,6 +411,42 @@ $('save').onclick = async () => {
 };
 $('close').onclick = () => currentWindow().close();
 
+// ---------- cloud drives ----------
+const CLOUD_NAMES = { dropbox: 'Dropbox', onedrive: 'OneDrive', gdrive: 'Google Drive' };
+let cloud = [];
+function renderCloud() {
+  for (const c of cloud) {
+    const acct = document.querySelector(`[data-acct="${c.id}"]`), btn = document.querySelector(`.conn[data-c="${c.id}"]`);
+    acct.textContent = c.account ? `Connected as ${c.account}` : 'Not connected';
+    acct.classList.toggle('on', !!c.account);
+    btn.textContent = c.account ? 'Disconnect' : 'Connect';
+    btn.classList.toggle('primary', !c.account);
+    const own = document.querySelector(`[data-own="${c.id}"]`);
+    own.querySelector('.builtin-note').style.display = c.builtin ? 'none' : '';
+    if (!c.builtin && !c.account) own.open = true;
+  }
+}
+async function loadCloud() { cloud = await invoke('cloud_status'); renderCloud(); }
+document.querySelectorAll('.conn').forEach(b => b.onclick = async () => {
+  const id = b.dataset.c, c = cloud.find(x => x.id === id);
+  if (c?.account) {
+    if (!await Modal.confirm(`Disconnect ${CLOUD_NAMES[id]}?`, `myCapture will forget the sign-in for ${c.account}. Links you already shared keep working.`, 'Disconnect', true)) return;
+    try { await invoke('cloud_disconnect', { provider: id }); } catch (err) { Modal.error('Could not disconnect', err); }
+    return loadCloud();
+  }
+  b.disabled = true;
+  b.textContent = 'Waiting for browser…';
+  try {
+    collect();
+    await invoke('set_settings', { settings: S });
+    const who = await invoke('cloud_connect', { provider: id });
+    toast(`${CLOUD_NAMES[id]} connected as ${who}`);
+  } catch (err) { Modal.error(`Could not connect ${CLOUD_NAMES[id]}`, err); }
+  b.disabled = false;
+  loadCloud();
+});
+document.querySelectorAll('.ownapp a[data-url]').forEach(a => a.onclick = e => { e.preventDefault(); invoke('open_url', { url: a.dataset.url }); });
+
 (async () => {
   S = await invoke('get_settings');
   fill();
@@ -370,6 +456,8 @@ $('close').onclick = () => currentWindow().close();
   }
   loadMics();
   loadCodecs();
+  loadCloud();
+  window.__TAURI__.app.getVersion().then(v => { $('version').textContent = v; }).catch(() => {});
   invoke('check_ffmpeg').then(v => { $('ffStatus').textContent = v; $('ffStatus').className = 'status ok'; })
     .catch(err => { $('ffStatus').textContent = err; $('ffStatus').className = 'status err'; });
 })();

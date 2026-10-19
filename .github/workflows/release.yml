@@ -79,6 +79,12 @@ jobs:
 
       - name: Build installers
         working-directory: app
+        # Optional OAuth app keys for the cloud drives; without them users register their own app.
+        env:
+          MYCAPTURE_DROPBOX_KEY: ${{ secrets.MYCAPTURE_DROPBOX_KEY }}
+          MYCAPTURE_ONEDRIVE_CLIENT_ID: ${{ secrets.MYCAPTURE_ONEDRIVE_CLIENT_ID }}
+          MYCAPTURE_GDRIVE_CLIENT_ID: ${{ secrets.MYCAPTURE_GDRIVE_CLIENT_ID }}
+          MYCAPTURE_GDRIVE_SECRET: ${{ secrets.MYCAPTURE_GDRIVE_SECRET }}
         run: |
           EXTRA=""
           [ "$RUNNER_OS" = "Windows" ] && EXTRA="--config tauri.ffmpeg.conf.json"
