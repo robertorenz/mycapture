@@ -15,6 +15,7 @@ A shiny little moon peeks out from the edge of your screen, half showing. Hover 
 - **Webcam bubble**: puts your camera in a corner of the recorded area. It can be a circle or a rounded square, you can resize it, and you can drag it anywhere. It is recorded along with the screen.
 - **Paste anywhere**: screenshots go to the clipboard as images, and videos and images can be copied as files. Paste them straight into WhatsApp, Teams, Slack, email and so on.
 - **Share links**: upload to **Dropbox**, **OneDrive** or **Google Drive** (sign in once in your browser), to the bundled self-hosted server, to S3-compatible storage (Cloudflare R2, AWS S3, Backblaze B2, MinIO) or to any multipart upload endpoint. The link is copied to your clipboard.
+- **Updates from GitHub**: Settings → About checks the latest GitHub release, shows its notes, and installs the new version with one click, restarting into it. It checks automatically at startup (can be turned off) and opens About once when something new is out. Updates are signed, so only builds from this repository are installed.
 - **English and Spanish**: Settings → General → Language follows the system by default, or pick English or Español. Menus, buttons, messages and the tray menu all switch.
 - **History** of every capture, with copy, share and delete.
 - Global hotkey (default `Ctrl/⌘+Shift+J`), a tray icon, and a dockable moon you can drag to the top, bottom, left or right edge of any monitor.
@@ -59,6 +60,16 @@ To ship ffmpeg inside the Windows installer, as the release workflow does, put `
 To cut a release, bump the version in `app/tauri.conf.json` and both `Cargo.toml` files, then push a tag such as `v0.2.0`. GitHub Actions builds every installer and attaches it to a draft release.
 
 GitHub Actions builds the app and the server on all three platforms on every push.
+
+## Releases and updates
+
+Push a tag like `v0.3.0` and the release workflow builds every platform, signs the installers for the updater, attaches `latest.json`, and publishes the release. Installed copies (0.3.0 or later) find it at `releases/latest/download/latest.json`.
+
+Signing needs the repository secret `TAURI_SIGNING_PRIVATE_KEY` (the private key created with `cargo tauri signer generate`; the matching public key is in `app/tauri.conf.json`). Keep a backup of the private key: without it, future releases can't be signed and installed copies won't accept them. For a signed local build:
+
+```sh
+TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/mycapture-updater.key)" TAURI_SIGNING_PRIVATE_KEY_PASSWORD="" cargo tauri build
+```
 
 ## Cloud drives (Dropbox, OneDrive, Google Drive)
 

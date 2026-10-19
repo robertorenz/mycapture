@@ -2,6 +2,9 @@ name: release
 
 # Push a tag like v0.1.0 (or run manually with a tag) to build installers for
 # Windows, macOS (Apple Silicon + Intel) and Linux and attach them to a GitHub Release.
+# Builds are signed for the in-app updater (secret TAURI_SIGNING_PRIVATE_KEY); once every
+# platform is built, latest.json is attached and the release is published, which is what
+# installed copies check for updates.
 on:
   push:
     tags: ["v*"]
@@ -85,6 +88,8 @@ jobs:
           MYCAPTURE_ONEDRIVE_CLIENT_ID: ${{ secrets.MYCAPTURE_ONEDRIVE_CLIENT_ID }}
           MYCAPTURE_GDRIVE_CLIENT_ID: ${{ secrets.MYCAPTURE_GDRIVE_CLIENT_ID }}
           MYCAPTURE_GDRIVE_SECRET: ${{ secrets.MYCAPTURE_GDRIVE_SECRET }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           EXTRA=""
           [ "$RUNNER_OS" = "Windows" ] && EXTRA="--config tauri.ffmpeg.conf.json"
@@ -97,7 +102,12 @@ jobs:
         run: |
           mkdir -p dist
           B=target/${{ matrix.target }}/release/bundle
-          find "$B" -maxdepth 2 -type f \( -name '*.msi' -o -name '*-setup.exe' -o -name '*.dmg' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \) -exec cp {} dist/ \;
+          find "$B" -maxdepth 2 -type f \( -name '*.msi' -o -name '*-setup.exe' -o -name '*.dmg' -o -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \
+            -o -name '*-setup.exe.sig' -o -name '*.AppImage.sig' \) -exec cp {} dist/ \;
+          # macOS updater bundle: both architectures are called myCapture.app.tar.gz, so name them apart.
+          for f in "$B"/macos/*.app.tar.gz "$B"/macos/*.app.tar.gz.sig; do
+            [ -f "$f" ] && cp "$f" "dist/$(basename "$f" | sed "s/\.app\.tar\.gz/_${{ matrix.label }}.app.tar.gz/")"
+          done
           EXT=""; [ "$RUNNER_OS" = "Windows" ] && EXT=".exe"
           cp "target/${{ matrix.target }}/release/mycapture-server$EXT" "dist/mycapture-server-${{ matrix.label }}$EXT"
           ls -la dist
@@ -106,3 +116,47 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" dist/* --clobber
+
+  # Point installed copies at this release, then publish it.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Write latest.json and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir sigs && cd sigs
+          gh release download "$TAG" --repo "$REPO" --pattern '*.sig'
+          ls -la
+          VERSION="${TAG#v}"
+          PREV=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)
+          NOTES=$(git log --no-merges --format='- %s' ${PREV:+$PREV..}"$TAG" | head -20)
+          python3 - "$VERSION" "$NOTES" <<'PY'
+          import json, sys, glob, os, datetime
+          version, notes = sys.argv[1], sys.argv[2]
+          base = f"https://github.com/{os.environ['REPO']}/releases/download/{os.environ['TAG']}/"
+          want = {
+              'windows-x86_64': '*-setup.exe.sig',
+              'darwin-aarch64': '*macos-arm64.app.tar.gz.sig',
+              'darwin-x86_64': '*macos-x64.app.tar.gz.sig',
+              'linux-x86_64': '*.AppImage.sig',
+          }
+          platforms = {}
+          for key, pattern in want.items():
+              found = glob.glob(pattern)
+              if found:
+                  sig = found[0]
+                  platforms[key] = {'signature': open(sig).read().strip(), 'url': base + sig[:-4]}
+          if 'windows-x86_64' not in platforms:
+              sys.exit('no signed Windows installer: is TAURI_SIGNING_PRIVATE_KEY set?')
+          out = {'version': version, 'notes': notes, 'pub_date': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'), 'platforms': platforms}
+          json.dump(out, open('latest.json', 'w'), indent=2)
+          print(json.dumps(out, indent=2))
+          PY
+          gh release upload "$TAG" latest.json --repo "$REPO" --clobber
+          gh release edit "$TAG" --repo "$REPO" --draft=false --latest

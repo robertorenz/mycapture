@@ -81,6 +81,10 @@ pub struct Settings {
     /// What to put on the clipboard right after a screenshot: "none" | "image" | "link"
     pub auto_copy: String,
     pub show_moon: bool,
+    /// Look for a new version on GitHub when myCapture starts.
+    pub check_updates: bool,
+    /// Newest version Settings was already opened for, so a found update is announced once.
+    pub announced_update: String,
     /// Launch myCapture when the user signs in.
     pub start_at_login: bool,
     /// Screen edge the moon docks to: "top" | "bottom" | "left" | "right"
@@ -111,6 +115,8 @@ impl Default for Settings {
             gif_fps: 12,
             auto_copy: "image".into(),
             show_moon: true,
+            check_updates: true,
+            announced_update: String::new(),
             start_at_login: true,
             moon_edge: "top".into(),
             moon_x: None,

@@ -58,6 +58,13 @@
   .status.ok { color: var(--ok); }
   .status.err { color: #f87171; }
   footer { grid-column: 2; display: flex; justify-content: flex-end; gap: 8px; padding: 12px 30px; border-top: 1px solid var(--line); background: var(--panel); }
+  nav a .badge-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-left: auto; box-shadow: 0 0 0 3px rgba(245, 158, 11, .2); }
+  #upd .new { display: none; }
+  #upd.has-new .new { display: block; }
+  #upd .notes { white-space: pre-wrap; font-size: 12.5px; color: var(--muted); background: #0d1527; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; max-height: 160px; overflow: auto; margin: 4px 0 12px; user-select: text; }
+  .meter { height: 8px; border-radius: 99px; background: #0d1527; border: 1px solid var(--line); overflow: hidden; margin: 2px 0 12px; display: none; }
+  .meter.on { display: block; }
+  .meter i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
   @media (max-width: 700px) { .providers { grid-template-columns: 1fr 1fr; } .row .ctl { width: 180px; } }
 </style>
 </head>
@@ -288,6 +295,26 @@
     <p>A tribute to TechSmith's classic Jing — the launcher, quick captures, quick sharing.</p>
     <div class="card">
       <div class="row"><div class="lab"><b>Version</b><span id="version"></span></div></div>
+    </div>
+    <div class="card" id="upd">
+      <div class="row">
+        <div class="lab"><b>Updates</b><span id="updStatus">New versions come from the myCapture releases on GitHub.</span></div>
+        <div class="ctl"><button class="btn" id="updCheck" data-icon="redo">Check for updates</button></div>
+      </div>
+      <div class="new">
+        <div class="notes" id="updNotes" data-no-tr></div>
+        <div class="meter" id="updMeter"><i></i></div>
+        <div class="row" style="border-top:0;padding-top:0">
+          <div class="lab"><span id="updHint">myCapture closes, installs the new version and opens again.</span></div>
+          <div class="ctl"><button class="btn primary" id="updInstall" data-icon="save">Install and restart</button></div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="lab"><b>Check automatically</b><span>Look for a new version when myCapture starts.</span></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" data-k="check_updates"><span></span></label></div>
+      </div>
+    </div>
+    <div class="card">
       <div class="row"><div class="lab"><b>Built with</b><span>Rust, Tauri 2, xcap, ffmpeg</span></div></div>
       <div class="row"><div class="lab"><b>Tips</b><span>Click a window to grab it whole · drag the moon to move it · Enter = image, V = video in the capture screen.</span></div></div>
     </div>
@@ -461,6 +488,21 @@ addStrings({
   "Tips": "Consejos",
   "Click a window to grab it whole · drag the moon to move it · Enter = image, V = video in the capture screen.": "Haz clic en una ventana para capturarla entera · arrastra la luna para moverla · Enter = imagen, V = video en la pantalla de captura.",
   "Press keys…": "Pulsa las teclas…",
+  "Updates": "Actualizaciones",
+  "New versions come from the myCapture releases on GitHub.": "Las versiones nuevas vienen de las publicaciones de myCapture en GitHub.",
+  "Check for updates": "Buscar actualizaciones",
+  "Checking for updates…": "Buscando actualizaciones…",
+  "You're up to date.": "Tienes la versión más reciente.",
+  "Version {0} is available (you have {1}).": "La versión {0} está disponible (tienes la {1}).",
+  "Install and restart": "Instalar y reiniciar",
+  "myCapture closes, installs the new version and opens again.": "myCapture se cierra, instala la versión nueva y vuelve a abrirse.",
+  "Downloading… {0}": "Descargando… {0}",
+  "Installing…": "Instalando…",
+  "Could not check for updates": "No se pudo buscar actualizaciones",
+  "The update could not be installed": "No se pudo instalar la actualización",
+  "Check automatically": "Buscar automáticamente",
+  "Look for a new version when myCapture starts.": "Buscar una versión nueva al iniciar myCapture.",
+  'No release notes.': 'Sin notas de la versión.',
   "Save settings": "Guardar configuración"
 });
 translatePage();
@@ -632,6 +674,44 @@ function showSection(sec) {
 listen('settings-changed', async () => { const fresh = await invoke('get_settings'); S.upload.provider = fresh.upload.provider; renderDefault(); });
 listen('settings-section', e => showSection(e.payload));
 
+// ---------- updates ----------
+const mb = n => `${(n / 1048576).toFixed(1)} MB`;
+async function checkUpdates(quiet) {
+  const b = $('updCheck'), st = $('updStatus');
+  b.disabled = true;
+  if (!quiet) st.textContent = tr('Checking for updates…');
+  try {
+    const u = await invoke('update_check');
+    $('upd').classList.toggle('has-new', !!u.version);
+    document.querySelector('nav a[data-sec="about"] .badge-dot')?.remove();
+    if (u.version) {
+      st.textContent = tr('Version {0} is available (you have {1}).', u.version, u.current);
+      $('updNotes').textContent = (u.notes || '').trim() || tr('No release notes.');
+      document.querySelector('nav a[data-sec="about"]').insertAdjacentHTML('beforeend', '<span class="badge-dot"></span>');
+    } else if (!quiet) st.textContent = tr("You're up to date.");
+  } catch (err) {
+    if (!quiet) { st.textContent = tr('Could not check for updates'); Modal.error(tr('Could not check for updates'), err); }
+  }
+  b.disabled = false;
+}
+$('updCheck').onclick = () => checkUpdates(false);
+$('updInstall').onclick = async () => {
+  $('updInstall').disabled = $('updCheck').disabled = true;
+  $('updMeter').classList.add('on');
+  $('updHint').textContent = tr('Downloading… {0}', '');
+  try { await invoke('update_install'); }
+  catch (err) {
+    $('updInstall').disabled = $('updCheck').disabled = false;
+    $('updMeter').classList.remove('on');
+    Modal.error(tr('The update could not be installed'), err);
+  }
+};
+listen('update-progress', e => {
+  const { downloaded, total } = e.payload;
+  $('updMeter').firstElementChild.style.width = total ? `${Math.min(100, downloaded / total * 100)}%` : '50%';
+  $('updHint').textContent = total && downloaded >= total ? tr('Installing…') : tr('Downloading… {0}', total ? `${mb(downloaded)} / ${mb(total)}` : mb(downloaded));
+});
+
 // ---------- cloud drives ----------
 const CLOUD_NAMES = { dropbox: 'Dropbox', onedrive: 'OneDrive', gdrive: 'Google Drive' };
 let cloud = [];
@@ -665,10 +745,6 @@ document.querySelectorAll('.conn').forEach(b => b.onclick = async () => {
   } catch (err) { Modal.error(tr('Could not connect {0}', CLOUD_NAMES[id]), err); }
   b.disabled = false;
   loadCloud();
-  const reopen = sessionStorage.getItem('mycapture.reopen');
-  sessionStorage.removeItem('mycapture.reopen');
-  if (reopen) { showSection(reopen); toast(tr('Settings saved')); }
-  else if (location.hash.length > 1) showSection(location.hash.slice(1));
 });
 document.querySelectorAll('.ownapp a[data-url]').forEach(a => a.onclick = e => { e.preventDefault(); invoke('open_url', { url: a.dataset.url }); });
 
@@ -683,6 +759,12 @@ document.querySelectorAll('.ownapp a[data-url]').forEach(a => a.onclick = e => {
   loadMics();
   loadCodecs();
   loadCloud();
+  checkUpdates(true);
+  // After a language switch reopen the same section; otherwise honour settings.html#section.
+  const reopen = sessionStorage.getItem('mycapture.reopen');
+  sessionStorage.removeItem('mycapture.reopen');
+  if (reopen) { showSection(reopen); toast(tr('Settings saved')); }
+  else if (location.hash.length > 1) showSection(location.hash.slice(1));
   window.__TAURI__.app.getVersion().then(v => { $('version').textContent = v; }).catch(() => {});
   invoke('check_ffmpeg').then(v => { $('ffStatus').textContent = v; $('ffStatus').className = 'status ok'; })
     .catch(err => { $('ffStatus').textContent = err; $('ffStatus').className = 'status err'; });

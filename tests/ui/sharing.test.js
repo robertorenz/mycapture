@@ -83,6 +83,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const saved = await page.evaluate(() => window.__calls.filter(c => c[0] === 'set_settings').pop()[1].settings.upload.provider);
   check('Make default saves it', saved === 'gdrive' && await page.$eval('.prov[data-p="gdrive"]', e => e.classList.contains('is-def')), saved);
 
+  // settings.html#sharing (from "Set up sharing…") opens on that section.
+  const p2 = await browser.newPage();
+  await p2.evaluateOnNewDocument(mock);
+  await p2.goto('file:///' + UI + '/settings.html#sharing');
+  await sleep(400);
+  check('#sharing opens the Sharing section', await p2.$eval('#sharing', e => e.classList.contains('on')));
+  await p2.close();
+
   const cols = await page.$$eval('.prov', els => els.length);
   check('seven sharing choices', cols === 7, cols);
   await page.screenshot({ path: path.join(__dirname, 'out', 'sharing.png') });

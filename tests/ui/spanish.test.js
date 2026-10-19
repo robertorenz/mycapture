@@ -85,6 +85,7 @@ const leftovers = p => p.evaluate(() => {
   await p.click('#save');
   await p.waitForFunction(() => document.querySelector('nav a[data-sec="sharing"]')?.textContent.trim() === 'Compartir', { timeout: 5000 });
   check('saving Español redraws Settings in Spanish', true);
+  check('and stays on the same section', await p.$eval('#general', e => e.classList.contains('on')));
   check('language remembered for other windows', await p.evaluate(() => localStorage.getItem('mycapture.lang')) === 'es');
   await p.screenshot({ path: path.join(__dirname, 'out', 'es-settings.png') });
   await p.close();

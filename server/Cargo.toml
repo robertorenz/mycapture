@@ -1,6 +1,6 @@
 [package]
 name = "mycapture-server"
-version = "0.2.9"
+version = "0.3.0"
 edition = "2021"
 description = "Tiny self-hosted upload server for myCapture captures"
 license = "MIT"

@@ -11,6 +11,7 @@ mod record;
 mod scroll;
 mod settings;
 mod stitch;
+mod updates;
 mod upload;
 
 use capture::Rect;
@@ -841,6 +842,42 @@ fn cloud_disconnect(provider: String) -> Result<(), String> {
     cloud::disconnect(cloud::Provider::from_id(&provider).ok_or_else(|| tr!("Unknown service"))?)
 }
 
+// ---------- updates ----------
+
+#[tauri::command]
+async fn update_check(app: AppHandle) -> Result<updates::Info, String> {
+    updates::check(&app).await
+}
+
+#[tauri::command]
+async fn update_install(app: AppHandle) -> Result<(), String> {
+    updates::install(&app).await
+}
+
+/// Startup check: when a new version is found, open Settings → About once for that version.
+fn auto_update_check(app: &AppHandle) {
+    if !settings_of(app).check_updates {
+        return;
+    }
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_secs(20)).await;
+        let Ok(info) = updates::check(&app).await else { return };
+        let Some(version) = info.version else { return };
+        {
+            let state = app.state::<AppState>();
+            let mut s = state.settings.lock().unwrap();
+            if s.announced_update == version {
+                return;
+            }
+            s.announced_update = version.clone();
+            let _ = s.save();
+        }
+        let _ = app.emit("update-available", version);
+        let _ = std::thread::spawn(move || open_settings(app, Some("about".into())));
+    });
+}
+
 // ---------- settings ----------
 
 #[tauri::command]
@@ -855,6 +892,7 @@ fn set_settings(app: AppHandle, settings: Settings) -> Result<(), String> {
     new.moon_x = old.moon_x;
     new.moon_y = old.moon_y;
     new.moon_edge = old.moon_edge;
+    new.announced_update = old.announced_update;
     new.save()?;
     *app.state::<AppState>().settings.lock().unwrap() = new.clone();
     if new.hotkey != old.hotkey {
@@ -1088,6 +1126,8 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(updates::Pending::default())
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
             settings: Mutex::new(settings),
@@ -1142,6 +1182,8 @@ pub fn run() {
             open_captures_folder,
             open_url,
             cloud_status,
+            update_check,
+            update_install,
             cloud_connect,
             cloud_disconnect,
             get_settings,
@@ -1172,6 +1214,7 @@ pub fn run() {
                 });
             }
             show_moon(&handle);
+            auto_update_check(&handle);
             Ok(())
         })
         .build(tauri::generate_context!())

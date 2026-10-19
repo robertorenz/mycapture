@@ -81,6 +81,9 @@ const ES: &[(&str, &str)] = &[
     ("Could not finish the video. The raw recording is kept in {}", "No se pudo terminar el video. La grabación sin procesar se guardó en {}"),
     ("{} (included with myCapture)", "{} (incluido con myCapture)"),
     ("Unknown service", "Servicio desconocido"),
+    ("Could not check for updates: {}", "No se pudo buscar actualizaciones: {}"),
+    ("Check for updates first.", "Primero busca actualizaciones."),
+    ("The update could not be installed: {}", "No se pudo instalar la actualización: {}"),
     // sharing
     ("Upload failed: {}", "No se pudo subir: {}"),
     ("Server said {}: {}", "El servidor respondió {}: {}"),
