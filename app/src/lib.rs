@@ -1,3 +1,5 @@
+#[macro_use]
+mod i18n;
 mod capture;
 mod clip;
 mod cloud;
@@ -88,7 +90,7 @@ fn open_page(app: &AppHandle, label: &str, url: &str, title: &str, w: f64, h: f6
 
 fn open_editor_window(app: &AppHandle, id: &str) -> Result<(), String> {
     let label = format!("ed_{}", id.replace(|c: char| !c.is_ascii_alphanumeric(), "_"));
-    open_page(app, &label, &format!("editor.html?id={id}"), "myCapture — Preview", 1100.0, 760.0).map(|_| ())
+    open_page(app, &label, &format!("editor.html?id={id}"), &tr!("myCapture — Preview"), 1100.0, 760.0).map(|_| ())
 }
 
 fn open_camera(app: &AppHandle, at: Option<Rect>) -> Result<(), String> {
@@ -349,7 +351,7 @@ fn record_resume(app: AppHandle) -> Result<(), String> {
     let s = settings_of(&app);
     let state = app.state::<AppState>();
     let mut guard = state.rec.lock().unwrap();
-    let r = guard.as_mut().ok_or("Not recording")?;
+    let r = guard.as_mut().ok_or_else(|| tr!("Not recording"))?;
     if r.child.is_some() {
         return Ok(());
     }
@@ -358,9 +360,7 @@ fn record_resume(app: AppHandle) -> Result<(), String> {
         if r.segments.is_empty() {
             drop(guard);
             abort_recording(&app);
-            report_error(&app, &format!("Recording could not start.
-
-{e}"));
+            report_error(&app, &tr!("Recording could not start.\n\n{}", e));
         }
     }
     res
@@ -370,14 +370,14 @@ fn record_resume(app: AppHandle) -> Result<(), String> {
 fn record_pause(app: AppHandle) -> Result<(), String> {
     let state = app.state::<AppState>();
     let mut guard = state.rec.lock().unwrap();
-    let r = guard.as_mut().ok_or("Not recording")?;
+    let r = guard.as_mut().ok_or_else(|| tr!("Not recording"))?;
     record::stop_segment(r);
     Ok(())
 }
 
 #[tauri::command(async)]
 fn record_stop(app: AppHandle) -> Result<(), String> {
-    let r = app.state::<AppState>().rec.lock().unwrap().take().ok_or("Not recording")?;
+    let r = app.state::<AppState>().rec.lock().unwrap().take().ok_or_else(|| tr!("Not recording"))?;
     close_window(&app, "frame");
     close_window(&app, "recbar");
     if r.opened_camera {
@@ -650,16 +650,16 @@ fn save_as(app: AppHandle, id: String) -> Result<bool, String> {
     let it = history::get(&id)?;
     let ext = it.file.rsplit('.').next().unwrap_or("png").to_ascii_lowercase();
     let label = match ext.as_str() {
-        "png" => "PNG image",
-        "gif" => "Animated GIF",
-        "webm" => "WebM video",
-        _ => "MP4 video",
+        "png" => tr!("PNG image"),
+        "gif" => tr!("Animated GIF"),
+        "webm" => tr!("WebM video"),
+        _ => tr!("MP4 video"),
     };
     let picked = app
         .dialog()
         .file()
         .set_file_name(&it.file)
-        .add_filter(label, &[ext.as_str()])
+        .add_filter(&label, &[ext.as_str()])
         .blocking_save_file();
     let Some(dest) = picked else { return Ok(false) };
     let dest = dest.into_path().map_err(|e| e.to_string())?;
@@ -693,7 +693,7 @@ fn open_editor(app: AppHandle, id: String) -> Result<(), String> {
 // Creates windows: must not run on the main thread (WebView2 deadlocks).
 #[tauri::command(async)]
 fn open_history(app: AppHandle) -> Result<(), String> {
-    open_page(&app, "history", "history.html", "myCapture — History", 1040.0, 720.0).map(|_| ())
+    open_page(&app, "history", "history.html", &tr!("myCapture — History"), 1040.0, 720.0).map(|_| ())
 }
 
 // Creates windows: must not run on the main thread (WebView2 deadlocks).
@@ -701,7 +701,7 @@ fn open_history(app: AppHandle) -> Result<(), String> {
 fn open_settings(app: AppHandle, section: Option<String>) -> Result<(), String> {
     let sec = section.unwrap_or_default();
     let existed = app.get_webview_window("settings").is_some();
-    let win = open_page(&app, "settings", &format!("settings.html#{sec}"), "myCapture — Settings", 780.0, 720.0)?;
+    let win = open_page(&app, "settings", &format!("settings.html#{sec}"), &tr!("myCapture — Settings"), 780.0, 720.0)?;
     if existed && !sec.is_empty() {
         let _ = win.emit("settings-section", sec);
     }
@@ -740,7 +740,7 @@ fn cloud_status() -> Vec<CloudInfo> {
 /// Sign in through the browser; returns the account name.
 #[tauri::command]
 async fn cloud_connect(app: AppHandle, provider: String) -> Result<String, String> {
-    let p = cloud::Provider::from_id(&provider).ok_or("Unknown service")?;
+    let p = cloud::Provider::from_id(&provider).ok_or_else(|| tr!("Unknown service"))?;
     let cfg = settings_of(&app).upload;
     let opener = app.clone();
     cloud::connect(p, &cfg, move |url| opener.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())).await
@@ -748,7 +748,7 @@ async fn cloud_connect(app: AppHandle, provider: String) -> Result<String, Strin
 
 #[tauri::command]
 fn cloud_disconnect(provider: String) -> Result<(), String> {
-    cloud::disconnect(cloud::Provider::from_id(&provider).ok_or("Unknown service")?)
+    cloud::disconnect(cloud::Provider::from_id(&provider).ok_or_else(|| tr!("Unknown service"))?)
 }
 
 // ---------- settings ----------
@@ -772,6 +772,14 @@ fn set_settings(app: AppHandle, settings: Settings) -> Result<(), String> {
     }
     if new.start_at_login != old.start_at_login {
         sync_autostart(&app);
+    }
+    if new.language != old.language {
+        i18n::set_language(&new.language);
+        if let (Some(tray), Ok(menu)) = (app.tray_by_id("main"), tray_menu(&app)) {
+            let _ = tray.set_menu(Some(menu));
+            let _ = tray.set_tooltip(Some(tr!("myCapture — click to capture")));
+        }
+        let _ = app.emit("language-changed", ());
     }
     if let Some(moon) = app.get_webview_window("moon") {
         let _ = if new.show_moon { moon.show() } else { moon.hide() };
@@ -829,7 +837,7 @@ fn register_hotkey(app: &AppHandle) -> Result<(), String> {
     if key.trim().is_empty() {
         return Ok(());
     }
-    gs.register(key.as_str()).map_err(|e| format!("Could not register hotkey {key}: {e}"))
+    gs.register(key.as_str()).map_err(|e| tr!("Could not register hotkey {}: {}", key, e))
 }
 
 // ---------- custom protocol: mycap://localhost/frame and /file/<name> ----------
@@ -908,19 +916,23 @@ fn serve_inner(app: &AppHandle, req: &tauri::http::Request<Vec<u8>>) -> tauri::h
 
 // ---------- tray ----------
 
-fn build_tray(app: &AppHandle) -> tauri::Result<()> {
-    let capture = MenuItem::with_id(app, "capture", "Capture…", true, None::<&str>)?;
-    let camera = MenuItem::with_id(app, "camera", "Toggle camera", true, None::<&str>)?;
-    let history = MenuItem::with_id(app, "history", "History", true, None::<&str>)?;
-    let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
-    let moon = MenuItem::with_id(app, "moon", "Show / hide the moon", true, None::<&str>)?;
-    let quit_item = MenuItem::with_id(app, "quit", "Quit myCapture", true, None::<&str>)?;
+fn tray_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+    let capture = MenuItem::with_id(app, "capture", tr!("Capture…"), true, None::<&str>)?;
+    let camera = MenuItem::with_id(app, "camera", tr!("Toggle camera"), true, None::<&str>)?;
+    let history = MenuItem::with_id(app, "history", tr!("History"), true, None::<&str>)?;
+    let settings = MenuItem::with_id(app, "settings", tr!("Settings"), true, None::<&str>)?;
+    let moon = MenuItem::with_id(app, "moon", tr!("Show / hide the moon"), true, None::<&str>)?;
+    let quit_item = MenuItem::with_id(app, "quit", tr!("Quit myCapture"), true, None::<&str>)?;
     let sep = PredefinedMenuItem::separator(app)?;
     let sep2 = PredefinedMenuItem::separator(app)?;
-    let menu = Menu::with_items(app, &[&capture, &camera, &sep, &history, &settings, &moon, &sep2, &quit_item])?;
+    Menu::with_items(app, &[&capture, &camera, &sep, &history, &settings, &moon, &sep2, &quit_item])
+}
+
+fn build_tray(app: &AppHandle) -> tauri::Result<()> {
+    let menu = tray_menu(app)?;
     TrayIconBuilder::with_id("main")
         .icon(app.default_window_icon().cloned().expect("icon"))
-        .tooltip("myCapture — click to capture")
+        .tooltip(tr!("myCapture — click to capture"))
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, ev| match ev.id().as_ref() {
@@ -957,6 +969,8 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let settings = Settings::load();
+    i18n::set_language(&settings.language);
     let builder = tauri::Builder::default();
     // A second launch brings up History, or starts a capture with `--capture`.
     // Development builds skip this so they can run next to an installed copy.
@@ -969,7 +983,7 @@ pub fn run() {
         show_moon(app);
         let app = app.clone();
         std::thread::spawn(move || {
-            let _ = open_page(&app, "history", "history.html", "myCapture — History", 1040.0, 720.0);
+            let _ = open_page(&app, "history", "history.html", &tr!("myCapture — History"), 1040.0, 720.0);
         });
     }));
     builder
@@ -986,7 +1000,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
-            settings: Mutex::new(Settings::load()),
+            settings: Mutex::new(settings),
             pending: Mutex::new(Vec::new()),
             rec: Mutex::new(None),
             moon: Mutex::new(false),

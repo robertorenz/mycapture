@@ -14,6 +14,7 @@ A shiny little moon peeks out from the edge of your screen, half showing. Hover 
 - **Webcam bubble**: puts your camera in a corner of the recorded area. It can be a circle or a rounded square, you can resize it, and you can drag it anywhere. It is recorded along with the screen.
 - **Paste anywhere**: screenshots go to the clipboard as images, and videos and images can be copied as files. Paste them straight into WhatsApp, Teams, Slack, email and so on.
 - **Share links**: upload to **Dropbox**, **OneDrive** or **Google Drive** (sign in once in your browser), to the bundled self-hosted server, to S3-compatible storage (Cloudflare R2, AWS S3, Backblaze B2, MinIO) or to any multipart upload endpoint. The link is copied to your clipboard.
+- **English and Spanish**: Settings → General → Language follows the system by default, or pick English or Español. Menus, buttons, messages and the tray menu all switch.
 - **History** of every capture, with copy, share and delete.
 - Global hotkey (default `Ctrl/⌘+Shift+J`), a tray icon, and a dockable moon you can drag to the top, bottom, left or right edge of any monitor.
 

@@ -138,11 +138,69 @@
 
 <script src="shared.js"></script>
 <script>
+addStrings({
+  'myCapture — Preview': 'myCapture — Vista previa',
+  'Loading…': 'Cargando…',
+  'Click to copy the link': 'Haz clic para copiar el enlace',
+  'History': 'Historial',
+  'Select & edit (V)': 'Seleccionar y editar (V)',
+  'Arrow (A)': 'Flecha (A)',
+  'Box (R)': 'Rectángulo (R)',
+  'Ellipse (E)': 'Elipse (E)',
+  'Highlighter (H)': 'Resaltador (H)',
+  'Pen (P)': 'Lápiz (P)',
+  'Text (T)': 'Texto (T)',
+  'Callout (C)': 'Globo de texto (C)',
+  'Numbered step (N)': 'Paso numerado (N)',
+  'Pixelate (B)': 'Pixelar (B)',
+  'Thin': 'Fino',
+  'Medium': 'Medio',
+  'Thick': 'Grueso',
+  'Undo (Ctrl+Z)': 'Deshacer (Ctrl+Z)',
+  'Redo (Ctrl+Y)': 'Rehacer (Ctrl+Y)',
+  'Copy image': 'Copiar imagen',
+  'Copy video': 'Copiar video',
+  'Copy as file': 'Copiar como archivo',
+  'Save as…': 'Guardar como…',
+  'Paste anywhere with Ctrl+V — WhatsApp, Teams, Slack, email…': 'Pega donde quieras con Ctrl+V: WhatsApp, Teams, Slack, correo…',
+  'Paste anywhere with ⌘V — WhatsApp, Teams, Slack, email…': 'Pega donde quieras con ⌘V: WhatsApp, Teams, Slack, correo…',
+  'Arrow': 'Flecha',
+  'Double arrow': 'Flecha doble',
+  'Curved arrow': 'Flecha curva',
+  'Block arrow': 'Flecha gruesa',
+  'Tapered arrow': 'Flecha afilada',
+  'Dashed arrow': 'Flecha punteada',
+  'Pointer': 'Puntero',
+  'Line': 'Línea',
+  'Callout': 'Globo',
+  'Filled bubble': 'Globo relleno',
+  'Outlined bubble': 'Globo con contorno',
+  'Square label': 'Etiqueta cuadrada',
+  'Speech balloon': 'Globo de diálogo',
+  'Text': 'Texto',
+  'That did not work': 'No funcionó',
+  'Image copied — paste it anywhere': 'Imagen copiada: pégala donde quieras',
+  'Video copied — paste it into your chat': 'Video copiado: pégalo en tu chat',
+  'File copied — paste it into your chat': 'Archivo copiado: pégalo en tu chat',
+  'Saved': 'Guardado',
+  'Link copied': 'Enlace copiado',
+  'Delete this capture?': '¿Eliminar esta captura?',
+  'It will be removed from your history and disk. Shared links stay online.': 'Se quitará del historial y del disco. Los enlaces compartidos siguen funcionando.',
+  'Uploaded — link copied': 'Subido: enlace copiado',
+  'Capture not found': 'No se encontró la captura',
+  'Screenshot': 'Captura de pantalla',
+  'Screen recording': 'Grabación de pantalla',
+  'Animated GIF': 'GIF animado',
+  "This video can't be played here": 'Este video no se puede reproducir aquí',
+  "The preview window can't decode this format (H.265/HEVC needs the HEVC Video Extensions from the Microsoft Store). The file itself is fine: use Copy video or Save as… to open it in your usual player.":
+    'La vista previa no puede decodificar este formato (H.265/HEVC necesita las Extensiones de video HEVC de Microsoft Store). El archivo está bien: usa Copiar video o Guardar como… para abrirlo en tu reproductor habitual.',
+});
+translatePage();
 hydrateIcons();
 const $ = id => document.getElementById(id);
 const id = new URLSearchParams(location.search).get('id');
 const isMac = /Mac/.test(navigator.platform);
-if (isMac) $('hint').textContent = 'Paste anywhere with ⌘V — WhatsApp, Teams, Slack, email…';
+if (isMac) $('hint').textContent = tr('Paste anywhere with ⌘V — WhatsApp, Teams, Slack, email…');
 
 let item = null;
 const cv = $('canvas'), ctx = cv.getContext('2d');
@@ -212,8 +270,8 @@ function renderOpts() {
   bar.classList.toggle('show', !!set && item?.kind === 'image');
   if (!set) return;
   const cur = selected?.type === kind ? (selected.style || set[0][0]) : kind === 'arrow' ? arrowStyle : calloutStyle;
-  bar.innerHTML = `<span class="lab">${kind === 'arrow' ? 'Arrow' : 'Callout'}</span>` + set.map(([sid, name, svg]) =>
-    `<button data-style="${sid}" title="${name}" class="${sid === cur ? 'on' : ''}"><svg viewBox="0 0 32 22" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${svg}</svg></button>`).join('');
+  bar.innerHTML = `<span class="lab">${tr(kind === 'arrow' ? 'Arrow' : 'Callout')}</span>` + set.map(([sid, name, svg]) =>
+    `<button data-style="${sid}" title="${esc(tr(name))}" class="${sid === cur ? 'on' : ''}"><svg viewBox="0 0 32 22" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${svg}</svg></button>`).join('');
 }
 $('opts').addEventListener('mousedown', e => e.stopPropagation());
 $('opts').addEventListener('click', e => {
@@ -646,7 +704,7 @@ $('stage').addEventListener('mousedown', e => {
   if (tool === 'text') { openText(p); return; }
   if (tool === 'step') { push({ type: 'step', x: p.x, y: p.y, n: shapes.filter(s => s.type === 'step').length + 1, color, size: sizeMult }); return; }
   if (tool === 'callout') {
-    drawing = { type: 'callout', tx: p.x, ty: p.y, bx: p.x, by: p.y, text: 'Text', style: calloutStyle, color, size: sizeMult };
+    drawing = { type: 'callout', tx: p.x, ty: p.y, bx: p.x, by: p.y, text: tr('Text'), style: calloutStyle, color, size: sizeMult };
     return;
   }
   drawing = tool === 'pen'
@@ -852,7 +910,7 @@ async function run(fn, okMsg) {
     const r = await fn();
     if (okMsg) toast(typeof okMsg === 'function' ? okMsg(r) : okMsg);
   } catch (err) {
-    Modal.error('That did not work', err);
+    Modal.error(tr('That did not work'), err);
   }
 }
 
@@ -861,19 +919,19 @@ function showUrl() {
   $('urlText').textContent = item.url || '';
 }
 
-$('copy').onclick = () => run(() => invoke('copy_image', { id }), 'Image copied — paste it anywhere');
-$('copyVid').onclick = () => run(() => invoke('copy_file', { id }), 'Video copied — paste it into your chat');
-$('copyFile').onclick = () => run(() => invoke('copy_file', { id }), 'File copied — paste it into your chat');
+$('copy').onclick = () => run(() => invoke('copy_image', { id }), tr('Image copied — paste it anywhere'));
+$('copyVid').onclick = () => run(() => invoke('copy_file', { id }), tr('Video copied — paste it into your chat'));
+$('copyFile').onclick = () => run(() => invoke('copy_file', { id }), tr('File copied — paste it into your chat'));
 $('shareSlot').replaceWith(shareButton({
   id,
   showDest: true,
-  onShared: url => { item.url = url; showUrl(); toast('Link copied to the clipboard'); },
+  onShared: url => { item.url = url; showUrl(); toast(tr('Link copied to the clipboard')); },
 }));
-$('saveAs').onclick = () => run(() => invoke('save_as', { id }), saved => saved ? 'Saved' : null);
-$('urlChip').onclick = () => run(() => invoke('copy_text', { text: item.url }), 'Link copied');
+$('saveAs').onclick = () => run(() => invoke('save_as', { id }), saved => saved ? tr('Saved') : null);
+$('urlChip').onclick = () => run(() => invoke('copy_text', { text: item.url }), tr('Link copied'));
 $('hist').onclick = () => invoke('open_history');
 $('del').onclick = async () => {
-  if (!await Modal.confirm('Delete this capture?', 'It will be removed from your history and disk. Shared links stay online.', 'Delete', true)) return;
+  if (!await Modal.confirm(tr('Delete this capture?'), tr('It will be removed from your history and disk. Shared links stay online.'), tr('Delete'), true)) return;
   await invoke('history_delete', { id });
   currentWindow().close();
 };
@@ -894,21 +952,21 @@ addEventListener('keydown', e => {
 
 listen('shared', e => {
   const [sid, url] = e.payload;
-  if (sid === id && item) { item.url = url; showUrl(); toast('Uploaded — link copied'); }
+  if (sid === id && item) { item.url = url; showUrl(); toast(tr('Uploaded — link copied')); }
 });
 
 (async () => {
   try {
     item = await invoke('history_get', { id });
   } catch (err) {
-    await Modal.error('Capture not found', err);
+    await Modal.error(tr('Capture not found'), err);
     currentWindow().close();
     return;
   }
   document.body.classList.add(item.kind);
   renderOpts();
-  const when = new Date(item.created).toLocaleString();
-  $('title').textContent = item.kind === 'image' ? 'Screenshot' : 'Screen recording';
+  const when = new Date(item.created).toLocaleString(LANG);
+  $('title').textContent = tr(item.kind === 'image' ? 'Screenshot' : 'Screen recording');
   $('sub').textContent = `${item.width} × ${item.height}${item.kind === 'video' ? ` · ${fmtDuration(item.duration)}` : ''} · ${when}`;
   document.title = `myCapture — ${$('title').textContent}`;
   showUrl();
@@ -920,7 +978,7 @@ listen('shared', e => {
       $('video').style.display = 'none';
       $('gif').style.display = 'block';
       $('gif').src = fileUrl(item.file);
-      $('title').textContent = 'Animated GIF';
+      $('title').textContent = tr('Animated GIF');
     } else {
       const v = $('video');
       v.src = fileUrl(item.file);
@@ -937,7 +995,7 @@ listen('shared', e => {
         e.stopPropagation();
         v.paused ? v.play() : v.pause();
       }, true);
-      v.addEventListener('error', () => Modal.error('This video can\'t be played here', 'The preview window can\'t decode this format (H.265/HEVC needs the HEVC Video Extensions from the Microsoft Store). The file itself is fine: use Copy video or Save as… to open it in your usual player.'));
+      v.addEventListener('error', () => Modal.error(tr("This video can't be played here"), tr("The preview window can't decode this format (H.265/HEVC needs the HEVC Video Extensions from the Microsoft Store). The file itself is fine: use Copy video or Save as… to open it in your usual player.")));
     }
   }
 })();

@@ -61,6 +61,28 @@
 <main id="main"></main>
 <script src="shared.js"></script>
 <script>
+addStrings({
+  'myCapture — History': 'myCapture — Historial',
+  'History': 'Historial',
+  'All': 'Todo',
+  'Images': 'Imágenes',
+  'Videos': 'Videos',
+  'Open folder': 'Abrir carpeta',
+  'Settings': 'Configuración',
+  'New capture': 'Nueva captura',
+  'No captures yet': 'Todavía no hay capturas',
+  'Hover the moon and pick {0}, or press {1}.': 'Pasa el cursor sobre la luna y elige {0}, o pulsa {1}.',
+  'Capture': 'Capturar',
+  'Shared': 'Compartido',
+  'Copy image': 'Copiar imagen',
+  'Copy video file': 'Copiar archivo de video',
+  'Copy': 'Copiar',
+  'Copied — paste it anywhere': 'Copiado: pégalo donde quieras',
+  'Delete this capture?': '¿Eliminar esta captura?',
+  'It will be removed from your history and disk.': 'Se quitará del historial y del disco.',
+  'That did not work': 'No funcionó',
+});
+translatePage();
 hydrateIcons();
 const main = document.getElementById('main');
 let items = [], filter = 'all', hotkey = '';
@@ -68,8 +90,9 @@ let items = [], filter = 'all', hotkey = '';
 function render() {
   const list = items.filter(i => filter === 'all' || i.kind === filter);
   if (!list.length) {
-    main.innerHTML = `<div class="empty"><div><img src="moon.png" alt=""><h2>No captures yet</h2>
-      <p>Hover the moon and pick <b>Capture</b>, or press <kbd>${esc(hotkey.replace('CommandOrControl', /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl'))}</kbd>.</p></div></div>`;
+    const key = `<kbd>${esc(hotkey.replace('CommandOrControl', /Mac/.test(navigator.platform) ? '⌘' : 'Ctrl'))}</kbd>`;
+    main.innerHTML = `<div class="empty"><div><img src="moon.png" alt=""><h2>${esc(tr('No captures yet'))}</h2>
+      <p>${tr(esc('Hover the moon and pick {0}, or press {1}.'), `<b>${esc(tr('Capture'))}</b>`, key)}</p></div></div>`;
     return;
   }
   main.innerHTML = `<div class="grid">${list.map(i => `
@@ -77,20 +100,20 @@ function render() {
       <div class="thumb">
         <img src="${fileUrl(i.thumb, false)}?v=${encodeURIComponent(i.width + 'x' + i.height + (i.url || ''))}" alt="" loading="lazy" onerror="this.style.display='none'">
         <span class="kind ${i.kind}">${icon(i.kind === 'image' ? 'image' : 'video')}${i.kind === 'image' ? `${i.width}×${i.height}` : fmtDuration(i.duration)}</span>
-        ${i.url ? `<span class="shared">${icon('link')}Shared</span>` : ''}
+        ${i.url ? `<span class="shared">${icon('link')}${esc(tr('Shared'))}</span>` : ''}
       </div>
-      <div class="info"><span>${esc(new Date(i.created).toLocaleString())}</span></div>
+      <div class="info"><span>${esc(new Date(i.created).toLocaleString(LANG))}</span></div>
       <div class="acts">
-        <button class="btn" data-act="copy" title="${i.kind === 'image' ? 'Copy image' : 'Copy video file'}">${icon('copy')}Copy</button>
+        <button class="btn" data-act="copy" title="${esc(tr(i.kind === 'image' ? 'Copy image' : 'Copy video file'))}">${icon('copy')}${esc(tr('Copy'))}</button>
         <span class="share-slot"></span>
         <div class="spacer"></div>
-        <button class="btn icon ghost danger" data-act="delete" title="Delete">${icon('trash')}</button>
+        <button class="btn icon ghost danger" data-act="delete" title="${esc(tr('Delete'))}">${icon('trash')}</button>
       </div>
     </div>`).join('')}</div>`;
   main.querySelectorAll('.card').forEach(card => card.querySelector('.share-slot').replaceWith(shareButton({
     id: card.dataset.id,
-    label: 'Share',
-    onShared: () => toast('Link copied to the clipboard'),
+    label: tr('Share'),
+    onShared: () => toast(tr('Link copied to the clipboard')),
   })));
 }
 
@@ -102,12 +125,12 @@ main.addEventListener('click', async e => {
   try {
     if (e.target.closest('.split')) return;
     if (!act) return invoke('open_editor', { id });
-    if (act === 'copy') { await invoke('copy_image', { id }); toast('Copied — paste it anywhere'); }
-    if (act === 'delete' && await Modal.confirm('Delete this capture?', 'It will be removed from your history and disk.', 'Delete', true)) {
+    if (act === 'copy') { await invoke('copy_image', { id }); toast(tr('Copied — paste it anywhere')); }
+    if (act === 'delete' && await Modal.confirm(tr('Delete this capture?'), tr('It will be removed from your history and disk.'), tr('Delete'), true)) {
       await invoke('history_delete', { id });
     }
   } catch (err) {
-    Modal.error('That did not work', err);
+    Modal.error(tr('That did not work'), err);
   }
 });
 

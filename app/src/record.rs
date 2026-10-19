@@ -62,10 +62,10 @@ pub fn ffmpeg_version(s: &Settings) -> Result<String, String> {
     let out = command(&s.ffmpeg())
         .arg("-version")
         .output()
-        .map_err(|_| format!("ffmpeg was not found ({}). Install it or set its path in Settings.", s.ffmpeg()))?;
+        .map_err(|_| tr!("ffmpeg was not found ({}). Install it or set its path in Settings.", s.ffmpeg()))?;
     let version = String::from_utf8_lossy(&out.stdout).lines().next().unwrap_or("ffmpeg").to_string();
     let bundled = s.ffmpeg_path.trim().is_empty() && crate::settings::bundled_ffmpeg().is_some();
-    Ok(if bundled { format!("{version} (included with myCapture)") } else { version })
+    Ok(if bundled { tr!("{} (included with myCapture)", version) } else { version })
 }
 
 /// List microphones ffmpeg can open on this platform.
@@ -254,7 +254,7 @@ fn spawn_segment(s: &Settings, r: &mut Recording) -> Result<(), String> {
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|_| format!("Could not start ffmpeg ({}). Install it or set its path in Settings.", s.ffmpeg()))?;
+        .map_err(|_| tr!("Could not start ffmpeg ({}). Install it or set its path in Settings.", s.ffmpeg()))?;
     // Drain stderr so ffmpeg never blocks on a full pipe; keep the tail for error messages.
     let log = Arc::new(Mutex::new(String::new()));
     if let Some(mut err) = child.stderr.take() {
@@ -282,7 +282,7 @@ fn spawn_segment(s: &Settings, r: &mut Recording) -> Result<(), String> {
         }
         std::thread::sleep(Duration::from_millis(100));
         let msg = log.lock().unwrap().trim().to_string();
-        return Err(if msg.is_empty() { "ffmpeg stopped unexpectedly.".into() } else { format!("ffmpeg: {msg}") });
+        return Err(if msg.is_empty() { tr!("ffmpeg stopped unexpectedly.") } else { format!("ffmpeg: {msg}") });
     }
     r.segments.push(out);
     r.child = Some((child, log));
@@ -328,7 +328,7 @@ pub fn finalize(s: &Settings, mut r: Recording) -> Result<history::Item, String>
     stop_segment(&mut r);
     let segs: Vec<PathBuf> = r.segments.iter().filter(|p| p.exists() && p.metadata().map(|m| m.len() > 0).unwrap_or(false)).cloned().collect();
     if segs.is_empty() {
-        return Err("Nothing was recorded.".into());
+        return Err(tr!("Nothing was recorded."));
     }
     let id = r.id.clone();
     let target = codec::get(&r.codec);
@@ -363,7 +363,7 @@ pub fn finalize(s: &Settings, mut r: Recording) -> Result<history::Item, String>
         .status()
         .map_err(|e| e.to_string())?;
     if !st.success() {
-        return Err(format!("Could not finish the video. The raw recording is kept in {}", work_dir(&id).display()));
+        return Err(tr!("Could not finish the video. The raw recording is kept in {}", work_dir(&id).display()));
     }
     let thumb = format!("{id}.thumb.jpg");
     let _ = command(&s.ffmpeg())

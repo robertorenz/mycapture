@@ -35,8 +35,8 @@ impl Loopback {
         });
         match ready_rx.recv_timeout(Duration::from_secs(5)) {
             Ok(Ok(())) => Ok(Self { url, stop, thread: Some(thread) }),
-            Ok(Err(e)) => Err(format!("Desktop sound: {e}")),
-            Err(_) => Err("Desktop sound: the audio device did not respond.".into()),
+            Ok(Err(e)) => Err(tr!("Desktop sound: {}", e)),
+            Err(_) => Err(tr!("Desktop sound: the audio device did not respond.")),
         }
     }
 

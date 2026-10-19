@@ -1,4 +1,5 @@
 //! Video formats the user can pick, and the ffmpeg arguments behind them.
+use crate::i18n;
 use crate::record::command;
 use crate::settings::Settings;
 use serde::Serialize;
@@ -167,7 +168,7 @@ pub fn available(s: &Settings) -> Vec<CodecInfo> {
     CODECS
         .iter()
         .zip(handles)
-        .map(|(c, h)| CodecInfo { id: c.id, label: c.label, group: c.group, desc: c.desc, available: h.join().unwrap_or(false) })
+        .map(|(c, h)| CodecInfo { id: c.id, label: i18n::t(c.label), group: i18n::t(c.group), desc: i18n::t(c.desc), available: h.join().unwrap_or(false) })
         .collect()
 }
 

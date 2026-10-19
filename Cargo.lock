@@ -2883,7 +2883,7 @@ checksum = "743fb55ba31b18fb1ecef6bdc9aa2743314978ac084044301a7eee33fb99a20d"
 
 [[package]]
 name = "mycapture"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -2895,6 +2895,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "sys-locale",
  "tauri",
  "tauri-build",
  "tauri-plugin-autostart",
@@ -2911,7 +2912,7 @@ dependencies = [
 
 [[package]]
 name = "mycapture-server"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "axum",
  "rand 0.9.5",
@@ -4811,6 +4812,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.9",
+]
+
+[[package]]
+name = "sys-locale"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8eab9a99a024a169fe8a903cf9d4a3b3601109bcc13bd9e3c6fff259138626c4"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

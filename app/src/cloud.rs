@@ -93,7 +93,7 @@ fn app_keys(p: Provider, cfg: &UploadSettings) -> Result<(String, Option<String>
     let (bid, bsecret) = p.builtin();
     let (id, secret) = if own_id.is_empty() { (bid.unwrap_or(""), bsecret.unwrap_or("")) } else { (own_id, own_secret) };
     if id.is_empty() {
-        return Err(format!("{0} needs an app key first. In Settings → Sharing → {0}, open “Use your own {0} app” and follow the steps.", p.name()));
+        return Err(tr!("{} needs an app key first. In Settings → Sharing → {}, open “Use your own {} app” and follow the steps.", p.name(), p.name(), p.name()));
     }
     Ok((id.to_string(), (!secret.is_empty()).then(|| secret.to_string())))
 }
@@ -152,7 +152,7 @@ pub async fn connect(p: Provider, cfg: &UploadSettings, open: impl Fn(&str) -> R
     let state = uuid::Uuid::new_v4().simple().to_string();
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", REDIRECT_PORT))
         .await
-        .map_err(|_| format!("Port {REDIRECT_PORT} is busy, so the sign-in can't come back to myCapture. Close the other sign-in and try again."))?;
+        .map_err(|_| tr!("Port {} is busy, so the sign-in can't come back to myCapture. Close the other sign-in and try again.", REDIRECT_PORT))?;
 
     let redirect = redirect_uri();
     let mut params = vec![
@@ -174,7 +174,7 @@ pub async fn connect(p: Provider, cfg: &UploadSettings, open: impl Fn(&str) -> R
 
     let code = tokio::time::timeout(Duration::from_secs(300), wait_for_code(&listener, &state, p))
         .await
-        .map_err(|_| "Sign-in timed out. Click Connect to try again.".to_string())??;
+        .map_err(|_| tr!("Sign-in timed out. Click Connect to try again."))??;
 
     let mut form = vec![
         ("grant_type", "authorization_code".to_string()),
@@ -190,8 +190,8 @@ pub async fn connect(p: Provider, cfg: &UploadSettings, open: impl Fn(&str) -> R
         form.push(("scope", p.scope().to_string()));
     }
     let tok = token_request(p, &form).await?;
-    let access = tok["access_token"].as_str().ok_or("The sign-in returned no access token.")?.to_string();
-    let refresh = tok["refresh_token"].as_str().ok_or("The sign-in returned no refresh token.")?.to_string();
+    let access = tok["access_token"].as_str().ok_or_else(|| tr!("The sign-in returned no access token."))?.to_string();
+    let refresh = tok["refresh_token"].as_str().ok_or_else(|| tr!("The sign-in returned no refresh token."))?.to_string();
     let name = account_name(p, &access).await.unwrap_or_else(|_| p.name().to_string());
     let mut map = load();
     map.insert(p.id().into(), Account { name: name.clone(), refresh_token: refresh, client_id, client_secret: secret });
@@ -215,21 +215,21 @@ async fn wait_for_code(listener: &tokio::net::TcpListener, state: &str, p: Provi
         }
         let result = match (q.get("code"), q.get("error")) {
             (Some(code), _) => Ok(code.clone()),
-            (_, err) => Err(q.get("error_description").or(err).cloned().unwrap_or_else(|| "Sign-in was cancelled.".into())),
+            (_, err) => Err(q.get("error_description").or(err).cloned().unwrap_or_else(|| tr!("Sign-in was cancelled."))),
         };
         let page = done_page(p, result.as_ref().err().map(String::as_str));
         let head = format!("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", page.len());
         let _ = sock.write_all(head.as_bytes()).await;
         let _ = sock.write_all(page.as_bytes()).await;
-        return result.map_err(|e| format!("{} sign-in failed: {e}", p.name()));
+        return result.map_err(|e| tr!("{} sign-in failed: {}", p.name(), e));
     }
 }
 
 fn done_page(p: Provider, error: Option<&str>) -> String {
     let esc = |s: &str| s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
     let (title, body, color) = match error {
-        None => (format!("{} is connected", p.name()), "You can close this tab and go back to myCapture.".to_string(), "#22c55e"),
-        Some(e) => ("Sign-in didn't finish".to_string(), esc(e), "#f87171"),
+        None => (tr!("{} is connected", p.name()), tr!("You can close this tab and go back to myCapture."), "#22c55e"),
+        Some(e) => (tr!("Sign-in didn't finish"), esc(e), "#f87171"),
     };
     format!(
         r#"<!doctype html><html><head><meta charset="utf-8"><title>myCapture</title><style>
@@ -243,7 +243,7 @@ h1{{font-size:20px;margin:0 0 10px}}p{{margin:0;color:#94a3b8;line-height:1.5}}b
 
 async fn token_request(p: Provider, form: &[(&str, String)]) -> Result<Value, String> {
     let res = reqwest::Client::new().post(p.token_url()).form(form).send().await.map_err(|e| e.to_string())?;
-    json_ok(res, &format!("{} sign-in", p.name())).await
+    json_ok(res, &tr!("{} sign-in", p.name())).await
 }
 
 async fn json_ok(res: reqwest::Response, what: &str) -> Result<Value, String> {
@@ -251,18 +251,18 @@ async fn json_ok(res: reqwest::Response, what: &str) -> Result<Value, String> {
     let body = res.text().await.map_err(|e| e.to_string())?;
     if !status.is_success() {
         let detail: String = body.chars().take(400).collect();
-        return Err(format!("{what} failed ({status}): {detail}"));
+        return Err(tr!("{} failed ({}): {}", what, status, detail));
     }
     if body.trim().is_empty() {
         return Ok(Value::Null);
     }
-    serde_json::from_str(&body).map_err(|e| format!("{what}: unexpected reply ({e})"))
+    serde_json::from_str(&body).map_err(|e| tr!("{}: unexpected reply ({})", what, e))
 }
 
 /// A fresh access token for the stored sign-in (rotating the refresh token when the provider issues a new one).
 async fn access_token(p: Provider) -> Result<String, String> {
     let mut map = load();
-    let acct = map.get(p.id()).cloned().ok_or_else(|| format!("{0} isn't connected. Open Settings → Sharing → {0} and click Connect.", p.name()))?;
+    let acct = map.get(p.id()).cloned().ok_or_else(|| tr!("{} isn't connected. Open Settings → Sharing → {} and click Connect.", p.name(), p.name()))?;
     let mut form = vec![
         ("grant_type", "refresh_token".to_string()),
         ("refresh_token", acct.refresh_token.clone()),
@@ -276,12 +276,12 @@ async fn access_token(p: Provider) -> Result<String, String> {
     }
     let tok = token_request(p, &form)
         .await
-        .map_err(|e| format!("{e}\n\nIf you removed myCapture's access, connect {} again in Settings.", p.name()))?;
+        .map_err(|e| tr!("{}\n\nIf you removed myCapture's access, connect {} again in Settings.", e, p.name()))?;
     if let Some(r) = tok["refresh_token"].as_str().filter(|r| *r != acct.refresh_token) {
         map.insert(p.id().into(), Account { refresh_token: r.to_string(), ..acct });
         save(&map)?;
     }
-    tok["access_token"].as_str().map(String::from).ok_or_else(|| "No access token in the reply.".into())
+    tok["access_token"].as_str().map(String::from).ok_or_else(|| tr!("No access token in the reply."))
 }
 
 async fn account_name(p: Provider, token: &str) -> Result<String, String> {
@@ -292,7 +292,7 @@ async fn account_name(p: Provider, token: &str) -> Result<String, String> {
         Provider::GDrive => c.get("https://www.googleapis.com/drive/v3/about?fields=user").bearer_auth(token).send().await,
     }
     .map_err(|e| e.to_string())?;
-    let v = json_ok(v, "Account lookup").await?;
+    let v = json_ok(v, &tr!("Account lookup")).await?;
     let pick = |keys: &[&str]| keys.iter().find_map(|k| v.pointer(k).and_then(Value::as_str).filter(|s| !s.is_empty()).map(String::from));
     match p {
         Provider::Dropbox => pick(&["/email", "/name/display_name"]),
@@ -330,24 +330,24 @@ async fn dropbox_upload(token: &str, name: &str, bytes: Vec<u8>) -> Result<Strin
     // Single requests are limited to 150 MB; larger files go through an upload session.
     const CHUNK: usize = 64 * MB;
     let meta = if bytes.len() <= CHUNK {
-        json_ok(call("upload", commit, bytes).await.map_err(|e| e.to_string())?, "Dropbox upload").await?
+        json_ok(call("upload", commit, bytes).await.map_err(|e| e.to_string())?, &tr!("Dropbox upload")).await?
     } else {
         let mut chunks = bytes.chunks(CHUNK);
         let first = chunks.next().unwrap_or_default().to_vec();
-        let start = json_ok(call("upload_session/start", json!({ "close": false }), first.clone()).await.map_err(|e| e.to_string())?, "Dropbox upload").await?;
-        let id = start["session_id"].as_str().ok_or("Dropbox gave no upload session.")?.to_string();
+        let start = json_ok(call("upload_session/start", json!({ "close": false }), first.clone()).await.map_err(|e| e.to_string())?, &tr!("Dropbox upload")).await?;
+        let id = start["session_id"].as_str().ok_or_else(|| tr!("Dropbox gave no upload session."))?.to_string();
         let mut offset = first.len();
         let rest: Vec<&[u8]> = chunks.collect();
-        let (last, middle) = rest.split_last().ok_or("Dropbox upload: empty file")?;
+        let (last, middle) = rest.split_last().ok_or_else(|| tr!("Dropbox upload: empty file"))?;
         for part in middle {
             let arg = json!({ "cursor": { "session_id": id, "offset": offset }, "close": false });
-            json_ok(call("upload_session/append_v2", arg, part.to_vec()).await.map_err(|e| e.to_string())?, "Dropbox upload").await?;
+            json_ok(call("upload_session/append_v2", arg, part.to_vec()).await.map_err(|e| e.to_string())?, &tr!("Dropbox upload")).await?;
             offset += part.len();
         }
         let arg = json!({ "cursor": { "session_id": id, "offset": offset }, "commit": commit });
-        json_ok(call("upload_session/finish", arg, last.to_vec()).await.map_err(|e| e.to_string())?, "Dropbox upload").await?
+        json_ok(call("upload_session/finish", arg, last.to_vec()).await.map_err(|e| e.to_string())?, &tr!("Dropbox upload")).await?
     };
-    let path = meta["path_display"].as_str().ok_or("Dropbox did not say where it saved the file.")?;
+    let path = meta["path_display"].as_str().ok_or_else(|| tr!("Dropbox did not say where it saved the file."))?;
     let res = c
         .post("https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings")
         .bearer_auth(token)
@@ -361,10 +361,10 @@ async fn dropbox_upload(token: &str, name: &str, bytes: Vec<u8>) -> Result<Strin
         if let Some(url) = v.pointer("/error/shared_link_already_exists/metadata/url").and_then(Value::as_str) {
             return Ok(url.to_string());
         }
-        return Err(format!("Dropbox could not make a share link: {v}"));
+        return Err(tr!("Dropbox could not make a share link: {}", v));
     }
-    let v = json_ok(res, "Dropbox share link").await?;
-    v["url"].as_str().map(String::from).ok_or_else(|| "Dropbox returned no link.".into())
+    let v = json_ok(res, &tr!("Dropbox share link")).await?;
+    v["url"].as_str().map(String::from).ok_or_else(|| tr!("Dropbox returned no link."))
 }
 
 async fn onedrive_upload(token: &str, name: &str, bytes: Vec<u8>) -> Result<String, String> {
@@ -377,8 +377,8 @@ async fn onedrive_upload(token: &str, name: &str, bytes: Vec<u8>) -> Result<Stri
         .send()
         .await
         .map_err(|e| e.to_string())?;
-    let session = json_ok(session, "OneDrive upload").await?;
-    let upload_url = session["uploadUrl"].as_str().ok_or("OneDrive gave no upload address.")?;
+    let session = json_ok(session, &tr!("OneDrive upload")).await?;
+    let upload_url = session["uploadUrl"].as_str().ok_or_else(|| tr!("OneDrive gave no upload address."))?;
     // Chunks must be multiples of 320 KiB.
     const CHUNK: usize = 32 * 320 * 1024;
     let total = bytes.len();
@@ -393,9 +393,9 @@ async fn onedrive_upload(token: &str, name: &str, bytes: Vec<u8>) -> Result<Stri
             .send()
             .await
             .map_err(|e| e.to_string())?;
-        item = json_ok(res, "OneDrive upload").await?;
+        item = json_ok(res, &tr!("OneDrive upload")).await?;
     }
-    let id = item["id"].as_str().ok_or("OneDrive did not confirm the upload.")?;
+    let id = item["id"].as_str().ok_or_else(|| tr!("OneDrive did not confirm the upload."))?;
     // Work and school accounts may not allow anonymous links; fall back to an organization link.
     let mut last_err = String::new();
     for scope in ["anonymous", "organization"] {
@@ -406,8 +406,8 @@ async fn onedrive_upload(token: &str, name: &str, bytes: Vec<u8>) -> Result<Stri
             .send()
             .await
             .map_err(|e| e.to_string())?;
-        match json_ok(res, "OneDrive share link").await {
-            Ok(v) => return v.pointer("/link/webUrl").and_then(Value::as_str).map(String::from).ok_or_else(|| "OneDrive returned no link.".into()),
+        match json_ok(res, &tr!("OneDrive share link")).await {
+            Ok(v) => return v.pointer("/link/webUrl").and_then(Value::as_str).map(String::from).ok_or_else(|| tr!("OneDrive returned no link.")),
             Err(e) => last_err = e,
         }
     }
@@ -431,7 +431,7 @@ async fn gdrive_upload(token: &str, name: &str, mime: &str, bytes: Vec<u8>) -> R
                 .send()
                 .await
                 .map_err(|e| e.to_string())?;
-            json_ok(made, "Google Drive folder").await?["id"].as_str().ok_or("Google Drive did not create the folder.")?.to_string()
+            json_ok(made, &tr!("Google Drive folder")).await?["id"].as_str().ok_or_else(|| tr!("Google Drive did not create the folder."))?.to_string()
         }
     };
     let start = c
@@ -443,12 +443,12 @@ async fn gdrive_upload(token: &str, name: &str, mime: &str, bytes: Vec<u8>) -> R
         .await
         .map_err(|e| e.to_string())?;
     if !start.status().is_success() {
-        return Err(json_ok(start, "Google Drive upload").await.err().unwrap_or_default());
+        return Err(json_ok(start, &tr!("Google Drive upload")).await.err().unwrap_or_default());
     }
-    let location = start.headers().get("location").and_then(|v| v.to_str().ok()).ok_or("Google Drive gave no upload address.")?.to_string();
+    let location = start.headers().get("location").and_then(|v| v.to_str().ok()).ok_or_else(|| tr!("Google Drive gave no upload address."))?.to_string();
     let put = c.put(location).header("Content-Type", mime).body(bytes).send().await.map_err(|e| e.to_string())?;
-    let file = json_ok(put, "Google Drive upload").await?;
-    let id = file["id"].as_str().ok_or("Google Drive did not confirm the upload.")?;
+    let file = json_ok(put, &tr!("Google Drive upload")).await?;
+    let id = file["id"].as_str().ok_or_else(|| tr!("Google Drive did not confirm the upload."))?;
     let share = c
         .post(format!("{api}/{id}/permissions"))
         .bearer_auth(token)
@@ -456,7 +456,7 @@ async fn gdrive_upload(token: &str, name: &str, mime: &str, bytes: Vec<u8>) -> R
         .send()
         .await
         .map_err(|e| e.to_string())?;
-    json_ok(share, "Google Drive share link").await?;
+    json_ok(share, &tr!("Google Drive share link")).await?;
     Ok(file["webViewLink"].as_str().map(String::from).unwrap_or_else(|| format!("https://drive.google.com/file/d/{id}/view")))
 }
 

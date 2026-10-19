@@ -4,6 +4,70 @@ const invoke = (cmd, args, opts) => TAURI.core.invoke(cmd, args, opts);
 const listen = (ev, cb) => TAURI.event.listen(ev, cb);
 const currentWindow = () => TAURI.window.getCurrentWindow();
 
+// ---------- language ----------
+// English text is the key. Settings stores the choice here too, so every window can translate
+// before it paints; "auto" follows the system language.
+const LANG = (() => {
+  let pref = 'auto';
+  try { pref = localStorage.getItem('mycapture.lang') || 'auto'; } catch {}
+  const l = pref === 'auto' ? (navigator.language || 'en').slice(0, 2).toLowerCase() : pref;
+  return l === 'es' ? 'es' : 'en';
+})();
+document.documentElement.lang = LANG;
+const STRINGS_ES = {
+  'OK': 'Aceptar',
+  'Cancel': 'Cancelar',
+  'Delete': 'Eliminar',
+  'Close': 'Cerrar',
+  'Share': 'Compartir',
+  'Share link': 'Compartir enlace',
+  'Share to…': 'Compartir en…',
+  'Upload failed': 'No se pudo subir',
+  'Upload to {0} and copy the link': 'Subir a {0} y copiar el enlace',
+  'Choose where to share': 'Elige dónde compartir',
+  'Default for the Share button': 'Predeterminado del botón Compartir',
+  'Make this the default': 'Usar como predeterminado',
+  'No sharing destination is set up yet.': 'Todavía no hay ningún destino para compartir.',
+  'Set up sharing…': 'Configurar uso compartido…',
+  'Link copied to the clipboard': 'Enlace copiado al portapapeles',
+  'Dropbox': 'Dropbox',
+  'OneDrive': 'OneDrive',
+  'Google Drive': 'Google Drive',
+  'myCapture server': 'Servidor myCapture',
+  'S3 storage': 'Almacenamiento S3',
+  'Custom upload': 'Subida personalizada',
+};
+/** Add a page's own Spanish strings. */
+function addStrings(map) { Object.assign(STRINGS_ES, map); }
+/** Translate English UI text; `{0}`, `{1}`… are filled from `args`. */
+function tr(s, ...args) {
+  let out = (LANG === 'es' && STRINGS_ES[s]) || s;
+  args.forEach((a, i) => { out = out.split(`{${i}}`).join(a); });
+  return out;
+}
+/** Translate the static text, titles and placeholders already in the page. */
+function translatePage(root = document.body) {
+  if (LANG === 'en') return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: n => n.parentElement?.closest('script, style, textarea, [data-no-tr]') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+  });
+  for (let n; (n = walker.nextNode());) {
+    const key = n.nodeValue.trim();
+    if (key && STRINGS_ES[key]) n.nodeValue = n.nodeValue.replace(key, STRINGS_ES[key]);
+  }
+  root.querySelectorAll('[title], [placeholder], [aria-label]').forEach(el => {
+    for (const a of ['title', 'placeholder', 'aria-label']) {
+      const v = el.getAttribute(a);
+      if (v && STRINGS_ES[v]) el.setAttribute(a, STRINGS_ES[v]);
+    }
+  });
+  // Text mixed with links or code: the element's whole (trusted, built-in) HTML is translated by key.
+  root.querySelectorAll('[data-i18n]').forEach(el => { const v = STRINGS_ES[el.dataset.i18n]; if (v) el.innerHTML = v; });
+  if (STRINGS_ES[document.title]) document.title = STRINGS_ES[document.title];
+}
+// Windows that are safe to rebuild switch language as soon as it changes in Settings.
+if (/\/(moon|history)\.html$/.test(location.pathname)) listen('language-changed', () => location.reload());
+
 const CAP_BASE = /Windows/.test(navigator.userAgent) ? 'http://mycap.localhost' : 'mycap://localhost';
 const fileUrl = (name, bust = true) => `${CAP_BASE}/file/${encodeURIComponent(name)}${bust ? `?t=${Date.now()}` : ''}`;
 
@@ -97,11 +161,11 @@ const Modal = {
     });
   },
   alert(title, body, kind = 'info') {
-    return this.open({ title, body, kind, buttons: [{ label: 'OK', cls: 'primary', value: true }] });
+    return this.open({ title, body, kind, buttons: [{ label: tr('OK'), cls: 'primary', value: true }] });
   },
   error(title, body) { return this.alert(title, String(body), 'err'); },
-  confirm(title, body, okLabel = 'OK', danger = false) {
-    return this.open({ title, body, kind: danger ? 'err' : 'info', buttons: [{ label: 'Cancel', value: false }, { label: okLabel, cls: 'primary', value: true }] });
+  confirm(title, body, okLabel = tr('OK'), danger = false) {
+    return this.open({ title, body, kind: danger ? 'err' : 'info', buttons: [{ label: tr('Cancel'), value: false }, { label: okLabel, cls: 'primary', value: true }] });
   },
 };
 
@@ -128,18 +192,18 @@ document.addEventListener('contextmenu', e => {
 // destination that is set up (with a star to change the default) and a shortcut to Settings.
 const DEST_ICON = { dropbox: 'cloud', onedrive: 'cloud', gdrive: 'cloud', server: 'link', s3: 'folder', http: 'link' };
 function closeShareMenus() { document.querySelectorAll('.menu').forEach(m => m.remove()); }
-function shareButton({ id, label = 'Share link', showDest = false, onShared, onError = err => Modal.error('Upload failed', err) }) {
+function shareButton({ id, label = tr('Share link'), showDest = false, onShared, onError = err => Modal.error(tr('Upload failed'), err) }) {
   const wrap = document.createElement('div');
   wrap.className = 'split';
   wrap.innerHTML = `<button class="btn split-main">${icon('share')}<span>${esc(label)}</span><small class="split-dest"></small></button>`
-    + `<button class="btn split-more" title="Share to…" aria-haspopup="menu">${icon('chevron')}</button>`;
+    + `<button class="btn split-more" title="${tr('Share to…')}" aria-haspopup="menu">${icon('chevron')}</button>`;
   const [main, more] = wrap.children;
   const targets = async () => (await invoke('share_targets')) || [];
   const busy = on => { main.disabled = more.disabled = on; };
   async function refresh(list) {
     const d = (list || await targets()).find(t => t.default);
-    main.title = d ? `Upload to ${d.label} and copy the link` : 'Choose where to share';
-    if (showDest) wrap.querySelector('.split-dest').textContent = d ? `· ${d.label}` : '';
+    main.title = d ? tr('Upload to {0} and copy the link', tr(d.label)) : tr('Choose where to share');
+    if (showDest) wrap.querySelector('.split-dest').textContent = d ? `· ${tr(d.label)}` : '';
   }
   async function go(provider) {
     closeShareMenus();
@@ -155,11 +219,11 @@ function shareButton({ id, label = 'Share link', showDest = false, onShared, onE
     m.setAttribute('role', 'menu');
     m.innerHTML = (list.length
       ? list.map(t => `<div class="menu-row">
-          <button class="menu-item" role="menuitem" data-p="${esc(t.id)}">${icon(DEST_ICON[t.id] || 'share')}<span class="mi-text"><b>${esc(t.label)}</b>${t.detail ? `<small>${esc(t.detail)}</small>` : ''}</span></button>
-          <button class="menu-star${t.default ? ' on' : ''}" data-star="${esc(t.id)}" title="${t.default ? 'Default for the Share button' : 'Make this the default'}">${icon('star')}</button>
+          <button class="menu-item" role="menuitem" data-p="${esc(t.id)}">${icon(DEST_ICON[t.id] || 'share')}<span class="mi-text"><b>${esc(tr(t.label))}</b>${t.detail ? `<small>${esc(t.detail)}</small>` : ''}</span></button>
+          <button class="menu-star${t.default ? ' on' : ''}" data-star="${esc(t.id)}" title="${t.default ? tr('Default for the Share button') : tr('Make this the default')}">${icon('star')}</button>
         </div>`).join('')
-      : '<div class="menu-empty">No sharing destination is set up yet.</div>')
-      + `<div class="menu-sep"></div><button class="menu-item" role="menuitem" data-setup>${icon('settings')}<span class="mi-text"><b>Set up sharing…</b></span></button>`;
+      : `<div class="menu-empty">${tr('No sharing destination is set up yet.')}</div>`)
+      + `<div class="menu-sep"></div><button class="menu-item" role="menuitem" data-setup>${icon('settings')}<span class="mi-text"><b>${tr('Set up sharing…')}</b></span></button>`;
     document.body.appendChild(m);
     const r = wrap.getBoundingClientRect(), mr = m.getBoundingClientRect();
     const top = r.bottom + 6 + mr.height <= innerHeight - 8 ? r.bottom + 6 : Math.max(8, r.top - 6 - mr.height);

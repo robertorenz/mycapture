@@ -75,6 +75,14 @@
     <p>How myCapture starts a capture and what happens afterwards.</p>
     <div class="card">
       <div class="row">
+        <div class="lab"><b>Language</b><span>Language of the menus, buttons and messages.</span></div>
+        <div class="ctl">
+          <select data-k="language" id="language">
+            <option value="auto">Same as the system</option><option value="en">English</option><option value="es">Español</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
         <div class="lab"><b>Capture hotkey</b><span>Starts a capture from anywhere. Press it again while recording to finish.</span></div>
         <div class="ctl"><input type="text" id="hotkey" readonly title="Click, then press a key combination"></div>
       </div>
@@ -203,11 +211,11 @@
           <div class="lab"><b>Account</b><span class="acct" data-acct="dropbox">Not connected</span></div>
           <div class="ctl"><button class="btn primary conn" data-c="dropbox">Connect</button></div>
         </div>
-        <div class="note">Captures are saved in a <code>myCapture</code> folder in your Dropbox and shared with a view-only link.</div>
+        <div class="note" data-i18n="html:dropbox-note">Captures are saved in a <code>myCapture</code> folder in your Dropbox and shared with a view-only link.</div>
         <details class="ownapp" data-own="dropbox">
           <summary>Use your own Dropbox app</summary>
           <div class="note builtin-note">This copy of myCapture has no Dropbox app key built in, so set one up once (about 5 minutes):</div>
-          <ol class="steps"><li>Go to <a href="#" data-url="https://www.dropbox.com/developers/apps">dropbox.com/developers/apps</a> and choose <b>Create app</b>: Scoped access, <b>App folder</b>.</li><li>On the <b>Permissions</b> tab tick <code>files.content.write</code> and <code>sharing.write</code>, then <b>Submit</b>.</li><li>On the <b>Settings</b> tab add the redirect URI <code>http://localhost:53682/</code>.</li><li>Copy the <b>App key</b> below, save, and click Connect.</li></ol>
+          <ol class="steps"><li data-i18n="html:step1">Go to <a href="#" data-url="https://www.dropbox.com/developers/apps">dropbox.com/developers/apps</a> and choose <b>Create app</b>: Scoped access, <b>App folder</b>.</li><li data-i18n="html:step2">On the <b>Permissions</b> tab tick <code>files.content.write</code> and <code>sharing.write</code>, then <b>Submit</b>.</li><li data-i18n="html:step3">On the <b>Settings</b> tab add the redirect URI <code>http://localhost:53682/</code>.</li><li data-i18n="html:step4">Copy the <b>App key</b> below, save, and click Connect.</li></ol>
           <div class="grid2"><label class="full">App key<input type="text" data-k="upload.dropbox_app_key" placeholder="e.g. a1b2c3d4e5f6g7h"></label></div>
         </details>
       </div>
@@ -216,11 +224,11 @@
           <div class="lab"><b>Account</b><span class="acct" data-acct="onedrive">Not connected</span></div>
           <div class="ctl"><button class="btn primary conn" data-c="onedrive">Connect</button></div>
         </div>
-        <div class="note">Captures are saved in a <code>myCapture</code> folder in your OneDrive and shared with a view-only link.</div>
+        <div class="note" data-i18n="html:onedrive-note">Captures are saved in a <code>myCapture</code> folder in your OneDrive and shared with a view-only link.</div>
         <details class="ownapp" data-own="onedrive">
           <summary>Use your own OneDrive app</summary>
           <div class="note builtin-note">This copy of myCapture has no OneDrive app key built in, so set one up once (about 5 minutes):</div>
-          <ol class="steps"><li>Open <a href="#" data-url="https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade">App registrations</a> (Microsoft Entra) and choose <b>New registration</b>.</li><li>Supported accounts: <b>any organizational directory and personal Microsoft accounts</b>.</li><li>Redirect URI: platform <b>Public client/native (mobile &amp; desktop)</b>, value <code>http://localhost</code>.</li><li>Copy the <b>Application (client) ID</b> below, save, and click Connect.</li></ol>
+          <ol class="steps"><li data-i18n="html:step5">Open <a href="#" data-url="https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade">App registrations</a> (Microsoft Entra) and choose <b>New registration</b>.</li><li data-i18n="html:step6">Supported accounts: <b>any organizational directory and personal Microsoft accounts</b>.</li><li data-i18n="html:step7">Redirect URI: platform <b>Public client/native (mobile &amp; desktop)</b>, value <code>http://localhost</code>.</li><li data-i18n="html:step8">Copy the <b>Application (client) ID</b> below, save, and click Connect.</li></ol>
           <div class="grid2"><label class="full">Application (client) ID<input type="text" data-k="upload.onedrive_client_id" placeholder="00000000-0000-0000-0000-000000000000"></label></div>
         </details>
       </div>
@@ -229,11 +237,11 @@
           <div class="lab"><b>Account</b><span class="acct" data-acct="gdrive">Not connected</span></div>
           <div class="ctl"><button class="btn primary conn" data-c="gdrive">Connect</button></div>
         </div>
-        <div class="note">Captures are saved in a <code>myCapture</code> folder in your Google Drive and shared with a view-only link.</div>
+        <div class="note" data-i18n="html:googledrive-note">Captures are saved in a <code>myCapture</code> folder in your Google Drive and shared with a view-only link.</div>
         <details class="ownapp" data-own="gdrive">
           <summary>Use your own Google Drive app</summary>
           <div class="note builtin-note">This copy of myCapture has no Google Drive app key built in, so set one up once (about 5 minutes):</div>
-          <ol class="steps"><li>In the <a href="#" data-url="https://console.cloud.google.com/apis/library/drive.googleapis.com">Google Cloud console</a> create a project and <b>enable the Google Drive API</b>.</li><li>Set up the <b>OAuth consent screen</b> (External) and add your Google account as a test user.</li><li>Under <b>Credentials</b> create an <b>OAuth client ID</b> of type <b>Desktop app</b>.</li><li>Copy the <b>Client ID</b> and <b>Client secret</b> below, save, and click Connect.</li></ol>
+          <ol class="steps"><li data-i18n="html:step9">In the <a href="#" data-url="https://console.cloud.google.com/apis/library/drive.googleapis.com">Google Cloud console</a> create a project and <b>enable the Google Drive API</b>.</li><li data-i18n="html:step10">Set up the <b>OAuth consent screen</b> (External) and add your Google account as a test user.</li><li data-i18n="html:step11">Under <b>Credentials</b> create an <b>OAuth client ID</b> of type <b>Desktop app</b>.</li><li data-i18n="html:step12">Copy the <b>Client ID</b> and <b>Client secret</b> below, save, and click Connect.</li></ol>
           <div class="grid2"><label class="full">Client ID<input type="text" data-k="upload.gdrive_client_id" placeholder="….apps.googleusercontent.com"></label><label class="full">Client secret<input type="password" data-k="upload.gdrive_client_secret"></label></div>
         </details>
       </div>
@@ -242,7 +250,7 @@
           <label class="full">Server URL<input type="url" data-k="upload.server_url" placeholder="https://share.example.com"></label>
           <label class="full">Upload token<input type="password" data-k="upload.server_token" placeholder="MYCAPTURE_TOKEN from the server"></label>
         </div>
-        <div class="note">Run the bundled server anywhere: <code>MYCAPTURE_TOKEN=secret MYCAPTURE_PUBLIC_URL=https://share.example.com mycapture-server</code>. Links get a preview page that shows a thumbnail in chat apps.</div>
+        <div class="note" data-i18n="html:server-note">Run the bundled server anywhere: <code>MYCAPTURE_TOKEN=secret MYCAPTURE_PUBLIC_URL=https://share.example.com mycapture-server</code>. Links get a preview page that shows a thumbnail in chat apps.</div>
       </div>
       <div class="pane" data-pane="s3">
         <div class="grid2">
@@ -291,6 +299,171 @@
 </footer>
 <script src="shared.js"></script>
 <script>
+addStrings({
+  "myCapture — Settings": "myCapture: Configuración",
+  "General": "General",
+  "Recording": "Grabación",
+  "Sharing": "Compartir",
+  "About": "Acerca de",
+  "How myCapture starts a capture and what happens afterwards.": "Cómo myCapture inicia una captura y qué pasa después.",
+  "Language": "Idioma",
+  "Language of the menus, buttons and messages.": "Idioma de los menús, botones y mensajes.",
+  "Same as the system": "El mismo del sistema",
+  "Capture hotkey": "Atajo de captura",
+  "Starts a capture from anywhere. Press it again while recording to finish.": "Inicia una captura desde cualquier lugar. Púlsalo de nuevo mientras grabas para terminar.",
+  "Click, then press a key combination": "Haz clic y luego pulsa una combinación de teclas",
+  "Show the moon": "Mostrar la luna",
+  "The floating moon launcher. You can always use the tray icon instead.": "El lanzador flotante de la luna. También puedes usar el icono de la bandeja.",
+  "Start when I sign in": "Iniciar al entrar en Windows",
+  "Keep the moon ready, like the original Jing.": "Ten la luna lista, como el Jing original.",
+  "After a screenshot": "Después de una captura",
+  "Put something on the clipboard automatically.": "Copia algo al portapapeles automáticamente.",
+  "Copy the image": "Copiar la imagen",
+  "Upload and copy the link": "Subir y copiar el enlace",
+  "Do nothing": "No hacer nada",
+  "Captures folder": "Carpeta de capturas",
+  "Every screenshot and video is kept here.": "Aquí se guardan todas las capturas y los videos.",
+  "Open folder": "Abrir carpeta",
+  "Screen video is encoded by ffmpeg into MP4 (H.264 + AAC), which plays everywhere.": "ffmpeg codifica el video de la pantalla en MP4 (H.264 + AAC), que se reproduce en todas partes.",
+  "Leave empty to use the copy included with myCapture (or the one on your PATH), or point to your own ffmpeg.": "Déjalo vacío para usar la copia incluida con myCapture (o la de tu PATH), o indica tu propio ffmpeg.",
+  "Check": "Comprobar",
+  "Checking…": "Comprobando…",
+  "Format": "Formato",
+  "How videos are encoded.": "Cómo se codifican los videos.",
+  "Quality": "Calidad",
+  "Smaller files trade a little sharpness for size.": "Los archivos más pequeños pierden un poco de nitidez.",
+  "Smaller file": "Archivo más pequeño",
+  "Balanced": "Equilibrada",
+  "Best quality": "Máxima calidad",
+  "Max resolution": "Resolución máxima",
+  "Scale big screens down to save space.": "Reduce las pantallas grandes para ahorrar espacio.",
+  "Original size": "Tamaño original",
+  "GIF frame rate": "Fotogramas del GIF",
+  "Lower keeps GIFs small. They're capped at 720p.": "Menos fotogramas, GIF más pequeños. Se limitan a 720p.",
+  "Frame rate": "Fotogramas por segundo",
+  "Higher is smoother but makes bigger files.": "Más es más fluido, pero los archivos pesan más.",
+  "Countdown": "Cuenta regresiva",
+  "Seconds before recording starts.": "Segundos antes de empezar a grabar.",
+  "None": "Ninguna",
+  "3 seconds": "3 segundos",
+  "5 seconds": "5 segundos",
+  "Record microphone": "Grabar micrófono",
+  "Narrate while you record.": "Narra mientras grabas.",
+  "Microphone": "Micrófono",
+  "Which input to record.": "Qué entrada grabar.",
+  "Refresh": "Actualizar",
+  "Loading…": "Cargando…",
+  "No microphones found": "No se encontraron micrófonos",
+  "ffmpeg found no microphones (check ffmpeg first).": "ffmpeg no encontró micrófonos (comprueba ffmpeg primero).",
+  "Record desktop sound": "Grabar sonido del escritorio",
+  "Everything your speakers play: videos, calls, app sounds. Mixed with the microphone.": "Todo lo que suena en tus altavoces: videos, llamadas, sonidos de aplicaciones. Se mezcla con el micrófono.",
+  "macOS does not let apps record system sound without an add-on such as BlackHole.": "macOS no permite grabar el sonido del sistema sin un complemento como BlackHole.",
+  "Camera bubble when recording": "Burbuja de cámara al grabar",
+  "Puts your webcam in the bottom-right corner of the recorded area. Drag it anywhere.": "Pone tu cámara web en la esquina inferior derecha del área grabada. Arrástrala a donde quieras.",
+  "Camera size": "Tamaño de la cámara",
+  "You can also resize it from the bubble itself.": "También puedes cambiar el tamaño desde la burbuja.",
+  "Small": "Pequeña",
+  "Medium": "Mediana",
+  "Large": "Grande",
+  "Extra large": "Muy grande",
+  "Camera shape": "Forma de la cámara",
+  "Circle": "Círculo",
+  "Rounded square": "Cuadrado redondeado",
+  "Where “Share link” uploads your captures. The link is copied so you can paste it into WhatsApp, Teams, Slack or email.": "Dónde sube tus capturas “Compartir enlace”. El enlace se copia para que lo pegues en WhatsApp, Teams, Slack o un correo.",
+  "Default": "Predeterminado",
+  "Off": "Desactivado",
+  "Copy & paste only": "Solo copiar y pegar",
+  "Sign in with your account": "Inicia sesión con tu cuenta",
+  "Personal, work or school": "Personal, del trabajo o escuela",
+  "Sign in with Google": "Inicia sesión con Google",
+  "Self-hosted, included": "En tu propio servidor, incluido",
+  "Custom": "Personalizado",
+  "Any upload endpoint": "Cualquier dirección de subida",
+  "Sharing is off. You can still copy images and video files and paste them straight into chat apps.": "Compartir está desactivado. Aún puedes copiar imágenes y videos y pegarlos directamente en tus chats.",
+  "Account": "Cuenta",
+  "Not connected": "Sin conectar",
+  "Connect": "Conectar",
+  "Disconnect": "Desconectar",
+  "Connected as {0}": "Conectado como {0}",
+  "Waiting for browser…": "Esperando al navegador…",
+  "Use your own Dropbox app": "Usar tu propia aplicación de Dropbox",
+  "Use your own OneDrive app": "Usar tu propia aplicación de OneDrive",
+  "Use your own Google Drive app": "Usar tu propia aplicación de Google Drive",
+  "This copy of myCapture has no Dropbox app key built in, so set one up once (about 5 minutes):": "Esta copia de myCapture no trae una clave de aplicación de Dropbox, así que configúrala una vez (unos 5 minutos):",
+  "This copy of myCapture has no OneDrive app key built in, so set one up once (about 5 minutes):": "Esta copia de myCapture no trae una clave de aplicación de OneDrive, así que configúrala una vez (unos 5 minutos):",
+  "This copy of myCapture has no Google Drive app key built in, so set one up once (about 5 minutes):": "Esta copia de myCapture no trae una clave de aplicación de Google Drive, así que configúrala una vez (unos 5 minutos):",
+  "html:dropbox-note": "Las capturas se guardan en una carpeta <code>myCapture</code> de tu Dropbox y se comparten con un enlace de solo lectura.",
+  "html:onedrive-note": "Las capturas se guardan en una carpeta <code>myCapture</code> de tu OneDrive y se comparten con un enlace de solo lectura.",
+  "html:googledrive-note": "Las capturas se guardan en una carpeta <code>myCapture</code> de tu Google Drive y se comparten con un enlace de solo lectura.",
+  "html:step1": "Ve a <a href=\"#\" data-url=\"https://www.dropbox.com/developers/apps\">dropbox.com/developers/apps</a> y elige <b>Create app</b>: Scoped access, <b>App folder</b>.",
+  "html:step2": "En la pestaña <b>Permissions</b> marca <code>files.content.write</code> y <code>sharing.write</code>, y luego <b>Submit</b>.",
+  "html:step3": "En la pestaña <b>Settings</b> agrega la URI de redirección <code>http://localhost:53682/</code>.",
+  "html:step4": "Copia la <b data-no-tr>App key</b> abajo, guarda y haz clic en Conectar.",
+  "html:step5": "Abre <a href=\"#\" data-url=\"https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade\">Registros de aplicaciones</a> (Microsoft Entra) y elige <b>Nuevo registro</b>.",
+  "html:step6": "Tipos de cuenta admitidos: <b>cualquier directorio organizativo y cuentas Microsoft personales</b>.",
+  "html:step7": "URI de redirección: plataforma <b>Cliente público/nativo (móvil y escritorio)</b>, valor <code>http://localhost</code>.",
+  "html:step8": "Copia el <b>Id. de aplicación (cliente)</b> abajo, guarda y haz clic en Conectar.",
+  "html:step9": "En la <a href=\"#\" data-url=\"https://console.cloud.google.com/apis/library/drive.googleapis.com\">consola de Google Cloud</a> crea un proyecto y <b>habilita la API de Google Drive</b>.",
+  "html:step10": "Configura la <b>pantalla de consentimiento de OAuth</b> (Externa) y agrega tu cuenta de Google como usuario de prueba.",
+  "html:step11": "En <b>Credenciales</b> crea un <b>ID de cliente de OAuth</b> del tipo <b>App de escritorio</b>.",
+  "html:step12": "Copia el <b>ID de cliente</b> y el <b>Secreto del cliente</b> abajo, guarda y haz clic en Conectar.",
+  "html:server-note": "Ejecuta el servidor incluido en cualquier parte: <code>MYCAPTURE_TOKEN=secret MYCAPTURE_PUBLIC_URL=https://share.example.com mycapture-server</code>. Los enlaces abren una página con miniatura en las aplicaciones de chat.",
+  "App key": "Clave de la aplicación (App key)",
+  "e.g. a1b2c3d4e5f6g7h": "p. ej. a1b2c3d4e5f6g7h",
+  "Application (client) ID": "Id. de aplicación (cliente)",
+  "Client ID": "ID de cliente",
+  "Client secret": "Secreto del cliente",
+  "Server URL": "URL del servidor",
+  "Upload token": "Token de subida",
+  "MYCAPTURE_TOKEN from the server": "MYCAPTURE_TOKEN del servidor",
+  "Endpoint": "Endpoint",
+  "Bucket": "Bucket",
+  "Region": "Región",
+  "Access key": "Clave de acceso",
+  "Secret key": "Clave secreta",
+  "Key prefix": "Prefijo de la clave",
+  "Path-style URLs": "URL de estilo ruta",
+  "Yes (R2, MinIO)": "Sí (R2, MinIO)",
+  "No (AWS virtual-host)": "No (host virtual de AWS)",
+  "Public base URL": "URL pública base",
+  "https://cdn.example.com — leave empty for 7-day signed links": "https://cdn.example.com: déjalo vacío para enlaces firmados de 7 días",
+  "Upload URL (multipart POST)": "URL de subida (POST multipart)",
+  "File field name": "Nombre del campo del archivo",
+  "URL in response (JSON path)": "URL en la respuesta (ruta JSON)",
+  "data.link — empty = plain text body": "data.link (vacío = cuerpo de texto)",
+  "Extra headers (one per line)": "Encabezados extra (uno por línea)",
+  "Default for Share": "Predeterminado para Compartir",
+  "Make default": "Usar como predeterminado",
+  "The Share button asks where to upload each time.": "El botón Compartir pregunta dónde subir cada vez.",
+  "With no default, the Share button asks where to upload each time.": "Sin predeterminado, el botón Compartir pregunta dónde subir cada vez.",
+  "The Share button uploads to {0}. Its arrow lists everything else you set up.": "El botón Compartir sube a {0}. Su flecha muestra todo lo demás que configuraste.",
+  "Use {0} when you click Share.": "Usar {0} al hacer clic en Compartir.",
+  "Share will ask each time": "Compartir preguntará cada vez",
+  "{0} is now the default": "{0} es ahora el predeterminado",
+  "Test": "Prueba",
+  "Uploads a small image to check the settings (save first).": "Sube una imagen pequeña para comprobar la configuración (guarda primero).",
+  "Test upload": "Probar subida",
+  "Uploading…": "Subiendo…",
+  "Worked: {0}": "Funcionó: {0}",
+  "Upload failed.": "No se pudo subir.",
+  "Test upload failed": "La prueba de subida falló",
+  "Settings saved": "Configuración guardada",
+  "Could not save settings": "No se pudo guardar la configuración",
+  "Disconnect {0}?": "¿Desconectar {0}?",
+  "myCapture will forget the sign-in for {0}. Links you already shared keep working.": "myCapture olvidará el inicio de sesión de {0}. Los enlaces que ya compartiste seguirán funcionando.",
+  "Could not disconnect": "No se pudo desconectar",
+  "Could not connect {0}": "No se pudo conectar {0}",
+  "{0} connected as {1}": "{0} conectado como {1}",
+  "About myCapture": "Acerca de myCapture",
+  "A tribute to TechSmith's classic Jing — the launcher, quick captures, quick sharing.": "Un homenaje al clásico Jing de TechSmith: el lanzador, capturas rápidas y compartir al instante.",
+  "Version": "Versión",
+  "Built with": "Hecho con",
+  "Tips": "Consejos",
+  "Click a window to grab it whole · drag the moon to move it · Enter = image, V = video in the capture screen.": "Haz clic en una ventana para capturarla entera · arrastra la luna para moverla · Enter = imagen, V = video en la pantalla de captura.",
+  "Press keys…": "Pulsa las teclas…",
+  "Save settings": "Guardar configuración"
+});
+translatePage();
 hydrateIcons();
 const $ = id => document.getElementById(id);
 let S = null;
@@ -310,11 +483,11 @@ function renderDefault() {
   const mine = view === def, b = $('makeDef');
   b.disabled = mine;
   b.classList.toggle('is-def', mine);
-  b.innerHTML = mine ? `${icon('star')}Default` : `${icon('star')}Make default`;
+  b.innerHTML = mine ? `${icon('star')}${tr('Default')}` : `${icon('star')}${tr('Make default')}`;
   const viewName = name(document.querySelector(`.prov[data-p="${view}"]`));
   $('defNote').textContent = view === 'none'
-    ? (mine ? 'The Share button asks where to upload each time.' : 'With no default, the Share button asks where to upload each time.')
-    : (mine ? `The Share button uploads to ${viewName}. Its arrow lists everything else you set up.` : `Use ${viewName} when you click Share.`);
+    ? tr(mine ? 'The Share button asks where to upload each time.' : 'With no default, the Share button asks where to upload each time.')
+    : (mine ? tr('The Share button uploads to {0}. Its arrow lists everything else you set up.', viewName) : tr('Use {0} when you click Share.', viewName));
 }
 function setProvider(p) {
   view = p;
@@ -360,29 +533,29 @@ async function loadCodecs() {
 }
 function codecChanged() {
   const c = codecs.find(x => x.id === $('codec').value);
-  $('codecDesc').textContent = c ? c.desc : 'How videos are encoded.';
+  $('codecDesc').textContent = c ? c.desc : tr('How videos are encoded.');
   $('gifRow').style.display = $('codec').value === 'gif' ? 'flex' : 'none';
 }
 $('codec').addEventListener('change', codecChanged);
 
 async function loadMics() {
   const sel = $('mic');
-  sel.innerHTML = '<option value="">Loading…</option>';
+  sel.innerHTML = `<option value="">${tr('Loading…')}</option>`;
   const mics = await invoke('list_mics');
   const cur = S.mic_device;
   const opts = mics.length ? mics : [];
   if (cur && !opts.includes(cur)) opts.unshift(cur);
   sel.innerHTML = opts.length
     ? opts.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('')
-    : '<option value="">No microphones found</option>';
+    : `<option value="">${tr('No microphones found')}</option>`;
   sel.value = cur && opts.includes(cur) ? cur : (opts[0] || '');
-  $('micNote').textContent = opts.length ? 'Which input to record.' : 'ffmpeg found no microphones (check ffmpeg first).';
+  $('micNote').textContent = tr(opts.length ? 'Which input to record.' : 'ffmpeg found no microphones (check ffmpeg first).');
 }
 
 // Hotkey recorder: click the field, press a combination.
 const hk = $('hotkey');
 let recording = false;
-hk.onclick = () => { recording = true; hk.classList.add('rec'); hk.value = 'Press keys…'; };
+hk.onclick = () => { recording = true; hk.classList.add('rec'); hk.value = tr('Press keys…'); };
 hk.onblur = () => { if (recording) { recording = false; hk.classList.remove('rec'); hk.value = S.hotkey; } };
 hk.addEventListener('keydown', e => {
   if (!recording) return;
@@ -408,7 +581,7 @@ $('checkFf').onclick = async () => {
   await invoke('set_settings', { settings: S });
   const st = $('ffStatus');
   st.className = 'status';
-  st.textContent = 'Checking…';
+  st.textContent = tr('Checking…');
   try { st.textContent = await invoke('check_ffmpeg'); st.className = 'status ok'; loadMics(); loadCodecs(); }
   catch (err) { st.textContent = err; st.className = 'status err'; }
 };
@@ -417,22 +590,29 @@ $('openFolder').onclick = () => invoke('open_captures_folder');
 $('test').onclick = async () => {
   const st = $('testStatus'), b = $('test');
   b.disabled = true;
-  st.textContent = 'Uploading…';
+  st.textContent = tr('Uploading…');
   try {
     collect();
     await invoke('set_settings', { settings: S });
     const url = await invoke('test_upload', { provider: view });
-    st.innerHTML = `Worked: <a href="#" id="testLink">${esc(url)}</a>`;
+    st.innerHTML = tr('Worked: {0}', `<a href="#" id="testLink">${esc(url)}</a>`);
     $('testLink').onclick = e => { e.preventDefault(); invoke('open_url', { url }); };
   } catch (err) {
-    st.textContent = 'Upload failed.';
-    Modal.error('Test upload failed', err);
+    st.textContent = tr('Upload failed.');
+    Modal.error(tr('Test upload failed'), err);
   }
   b.disabled = false;
 };
+function rememberLanguage(lang) { try { localStorage.setItem('mycapture.lang', lang || 'auto'); } catch {} }
 $('save').onclick = async () => {
-  try { await invoke('set_settings', { settings: collect() }); toast('Settings saved'); }
-  catch (err) { Modal.error('Could not save settings', err); }
+  const before = S.language;
+  try {
+    await invoke('set_settings', { settings: collect() });
+    rememberLanguage(S.language);
+    if (S.language !== before) { sessionStorage.setItem('mycapture.reopen', document.querySelector('nav a.on')?.dataset.sec || ''); location.reload(); return; }
+    toast(tr('Settings saved'));
+  }
+  catch (err) { Modal.error(tr('Could not save settings'), err); }
 };
 $('close').onclick = () => currentWindow().close();
 $('makeDef').onclick = async () => {
@@ -441,8 +621,8 @@ $('makeDef').onclick = async () => {
     S.upload.provider = view;
     await invoke('set_settings', { settings: S });
     renderDefault();
-    toast(view === 'none' ? 'Share will ask each time' : `${document.querySelector(`.prov[data-p="${view}"] b`).textContent} is now the default`);
-  } catch (err) { Modal.error('Could not save settings', err); }
+    toast(view === 'none' ? tr('Share will ask each time') : tr('{0} is now the default', document.querySelector(`.prov[data-p="${view}"] b`).textContent));
+  } catch (err) { Modal.error(tr('Could not save settings'), err); }
 };
 function showSection(sec) {
   const a = document.querySelector(`nav a[data-sec="${sec}"]`);
@@ -458,9 +638,9 @@ let cloud = [];
 function renderCloud() {
   for (const c of cloud) {
     const acct = document.querySelector(`[data-acct="${c.id}"]`), btn = document.querySelector(`.conn[data-c="${c.id}"]`);
-    acct.textContent = c.account ? `Connected as ${c.account}` : 'Not connected';
+    acct.textContent = c.account ? tr('Connected as {0}', c.account) : tr('Not connected');
     acct.classList.toggle('on', !!c.account);
-    btn.textContent = c.account ? 'Disconnect' : 'Connect';
+    btn.textContent = tr(c.account ? 'Disconnect' : 'Connect');
     btn.classList.toggle('primary', !c.account);
     const own = document.querySelector(`[data-own="${c.id}"]`);
     own.querySelector('.builtin-note').style.display = c.builtin ? 'none' : '';
@@ -471,30 +651,34 @@ async function loadCloud() { cloud = await invoke('cloud_status'); renderCloud()
 document.querySelectorAll('.conn').forEach(b => b.onclick = async () => {
   const id = b.dataset.c, c = cloud.find(x => x.id === id);
   if (c?.account) {
-    if (!await Modal.confirm(`Disconnect ${CLOUD_NAMES[id]}?`, `myCapture will forget the sign-in for ${c.account}. Links you already shared keep working.`, 'Disconnect', true)) return;
-    try { await invoke('cloud_disconnect', { provider: id }); } catch (err) { Modal.error('Could not disconnect', err); }
+    if (!await Modal.confirm(tr('Disconnect {0}?', CLOUD_NAMES[id]), tr('myCapture will forget the sign-in for {0}. Links you already shared keep working.', c.account), tr('Disconnect'), true)) return;
+    try { await invoke('cloud_disconnect', { provider: id }); } catch (err) { Modal.error(tr('Could not disconnect'), err); }
     return loadCloud();
   }
   b.disabled = true;
-  b.textContent = 'Waiting for browser…';
+  b.textContent = tr('Waiting for browser…');
   try {
     collect();
     await invoke('set_settings', { settings: S });
     const who = await invoke('cloud_connect', { provider: id });
-    toast(`${CLOUD_NAMES[id]} connected as ${who}`);
-  } catch (err) { Modal.error(`Could not connect ${CLOUD_NAMES[id]}`, err); }
+    toast(tr('{0} connected as {1}', CLOUD_NAMES[id], who));
+  } catch (err) { Modal.error(tr('Could not connect {0}', CLOUD_NAMES[id]), err); }
   b.disabled = false;
   loadCloud();
-  if (location.hash.length > 1) showSection(location.hash.slice(1));
+  const reopen = sessionStorage.getItem('mycapture.reopen');
+  sessionStorage.removeItem('mycapture.reopen');
+  if (reopen) { showSection(reopen); toast(tr('Settings saved')); }
+  else if (location.hash.length > 1) showSection(location.hash.slice(1));
 });
 document.querySelectorAll('.ownapp a[data-url]').forEach(a => a.onclick = e => { e.preventDefault(); invoke('open_url', { url: a.dataset.url }); });
 
 (async () => {
   S = await invoke('get_settings');
+  rememberLanguage(S.language);
   fill();
   if (navigator.userAgent.includes('Mac')) {
     $('desktopRow').querySelector('input').disabled = true;
-    $('desktopNote').textContent = 'macOS does not let apps record system sound without an add-on such as BlackHole.';
+    $('desktopNote').textContent = tr('macOS does not let apps record system sound without an add-on such as BlackHole.');
   }
   loadMics();
   loadCodecs();

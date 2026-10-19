@@ -59,6 +59,8 @@ impl Default for UploadSettings {
 #[serde(default)]
 pub struct Settings {
     pub hotkey: String,
+    /// "auto" (system language) | "en" | "es"
+    pub language: String,
     pub ffmpeg_path: String,
     pub fps: u32,
     pub record_mic: bool,
@@ -93,6 +95,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             hotkey: "CommandOrControl+Shift+J".into(),
+            language: "auto".into(),
             ffmpeg_path: String::new(),
             fps: 30,
             record_mic: true,

@@ -49,7 +49,7 @@ fn save(items: &[Item]) -> Result<(), String> {
 }
 
 pub fn get(id: &str) -> Result<Item, String> {
-    list().into_iter().find(|i| i.id == id).ok_or_else(|| "Capture not found".to_string())
+    list().into_iter().find(|i| i.id == id).ok_or_else(|| tr!("Capture not found"))
 }
 
 pub fn add(item: Item) -> Result<(), String> {

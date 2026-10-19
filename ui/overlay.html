@@ -46,6 +46,20 @@
 </div>
 <script src="shared.js"></script>
 <script>
+addStrings({
+  'myCapture capture': 'Captura de myCapture',
+  'Drag to select an area · click to grab a window ·': 'Arrastra para elegir un área · haz clic para capturar una ventana ·',
+  'to cancel': 'para cancelar',
+  'Screenshot (Enter)': 'Captura de pantalla (Enter)',
+  'Image': 'Imagen',
+  'Record video of this area': 'Grabar video de esta área',
+  'Video': 'Video',
+  'Select again': 'Seleccionar de nuevo',
+  'Cancel (Esc)': 'Cancelar (Esc)',
+  'Could not save the screenshot': 'No se pudo guardar la captura',
+  'Could not start recording': 'No se pudo iniciar la grabación',
+});
+translatePage();
 hydrateIcons();
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const mag = document.getElementById('mag'), magc = document.getElementById('magc').getContext('2d'), magInfo = document.getElementById('magInfo');
@@ -240,7 +254,7 @@ async function takeImage() {
   mode = 'busy';
   draw();
   try { await invoke('finish_image', { rect: toImg(sel) }); }
-  catch (err) { mode = 'selected'; draw(); Modal.error('Could not save the screenshot', err); }
+  catch (err) { mode = 'selected'; draw(); Modal.error(tr('Could not save the screenshot'), err); }
 }
 
 async function takeVideo() {
@@ -248,7 +262,7 @@ async function takeVideo() {
   mode = 'busy';
   draw();
   try { await invoke('start_video', { rect: toImg(sel) }); }
-  catch (err) { mode = 'selected'; draw(); Modal.error('Could not start recording', err); }
+  catch (err) { mode = 'selected'; draw(); Modal.error(tr('Could not start recording'), err); }
 }
 
 function reselect() { sel = null; mode = 'hover'; hoverRect = windowAt(cur); draw(); }

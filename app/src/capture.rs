@@ -119,7 +119,7 @@ pub fn grab_all(app: &AppHandle) -> Result<Vec<Pending>, String> {
         });
     }
     if shots.is_empty() {
-        return Err("Could not capture the screen.".into());
+        return Err(tr!("Could not capture the screen."));
     }
     Ok(shots)
 }
@@ -142,7 +142,7 @@ pub fn encode_fast_png(img: &image::RgbaImage) -> Vec<u8> {
 pub fn begin(app: &AppHandle) -> Result<(), String> {
     let state = app.state::<AppState>();
     if state.rec.lock().unwrap().is_some() {
-        return Err("A recording is in progress.".into());
+        return Err(tr!("A recording is in progress."));
     }
     if !state.pending.lock().unwrap().is_empty() {
         if let Some(w) = app.webview_windows().into_values().find(|w| overlay_index(w.label()).is_some()) {
@@ -199,7 +199,7 @@ pub fn under_cursor(app: &AppHandle, idx: usize) -> bool {
 pub fn info(app: &AppHandle, idx: usize) -> Result<OverlayInfo, String> {
     let state = app.state::<AppState>();
     let shots = state.pending.lock().unwrap();
-    let p = shots.get(idx).ok_or("No capture in progress")?;
+    let p = shots.get(idx).ok_or_else(|| tr!("No capture in progress"))?;
     Ok(OverlayInfo { width: p.image.width(), height: p.image.height(), windows: p.windows.clone() })
 }
 
@@ -230,14 +230,14 @@ pub fn take(app: &AppHandle, idx: usize) -> Result<Pending, String> {
     if idx < shots.len() {
         Ok(shots.swap_remove(idx))
     } else {
-        Err("No capture in progress".into())
+        Err(tr!("No capture in progress"))
     }
 }
 
 /// Crop the frozen frame, store it in history and return the new item.
 pub fn finish_image(app: &AppHandle, idx: usize, rect: Rect) -> Result<history::Item, String> {
     let pending = take(app, idx)?;
-    let r = clip(rect, pending.image.width(), pending.image.height()).ok_or("Selection is too small")?;
+    let r = clip(rect, pending.image.width(), pending.image.height()).ok_or_else(|| tr!("Selection is too small"))?;
     let crop = image::imageops::crop_imm(&pending.image, r.x as u32, r.y as u32, r.w as u32, r.h as u32).to_image();
     let id = history::new_id();
     let item = history::Item {

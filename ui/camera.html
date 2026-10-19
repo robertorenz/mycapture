@@ -39,6 +39,15 @@
 </div>
 <script src="shared.js"></script>
 <script>
+addStrings({
+  'myCapture camera': 'Cámara de myCapture',
+  'Smaller': 'Más pequeña',
+  'Bigger': 'Más grande',
+  'Circle / rounded square': 'Círculo / cuadrado redondeado',
+  'Hide camera': 'Ocultar cámara',
+  'Camera unavailable — check camera permission for myCapture.': 'Cámara no disponible: revisa el permiso de cámara de myCapture.',
+});
+translatePage();
 hydrateIcons();
 let size = 220, shape = 'circle';
 const msg = document.getElementById('msg');
@@ -49,7 +58,7 @@ async function start() {
     document.getElementById('v').srcObject = stream;
   } catch (err) {
     msg.style.display = 'grid';
-    msg.textContent = 'Camera unavailable — check camera permission for myCapture.';
+    msg.textContent = tr('Camera unavailable — check camera permission for myCapture.');
   }
 }
 

@@ -21,8 +21,14 @@
   </div>
 <script src="shared.js"></script>
 <script>
+addStrings({
+  'Something needs your attention': 'Algo requiere tu atención',
+  'Open settings': 'Abrir configuración',
+  'Unknown error': 'Error desconocido',
+});
+translatePage();
 hydrateIcons();
-document.getElementById('msg').textContent = new URLSearchParams(location.search).get('msg') || 'Unknown error';
+document.getElementById('msg').textContent = new URLSearchParams(location.search).get('msg') || tr('Unknown error');
 document.getElementById('ok').onclick = () => currentWindow().close();
 document.getElementById('settings').onclick = async () => { await invoke('open_settings'); currentWindow().close(); };
 addEventListener('keydown', e => { if (e.key === 'Escape' || e.key === 'Enter') currentWindow().close(); });

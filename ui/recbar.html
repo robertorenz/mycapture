@@ -12,7 +12,7 @@
     box-shadow: 0 6px 18px rgba(0, 0, 0, .45);
   }
   .grip { width: 22px; height: 100%; display: grid; place-items: center; color: #4b5b7e; cursor: grab; }
-  .status { display: flex; align-items: center; gap: 8px; min-width: 112px; padding: 0 8px; font: 600 15px ui-monospace, Consolas, monospace; }
+  .status { display: flex; align-items: center; gap: 8px; min-width: 112px; white-space: nowrap; padding: 0 8px; font: 600 15px ui-monospace, Consolas, monospace; }
   .dot { width: 11px; height: 11px; border-radius: 50%; background: #64748b; flex: none; }
   body.live .dot { background: var(--danger); box-shadow: 0 0 0 4px rgba(239, 68, 68, .2); animation: blink 1.2s infinite; }
   body.paused .dot { background: var(--accent); }
@@ -41,6 +41,30 @@
 </div>
 <script src="shared.js"></script>
 <script>
+addStrings({
+  'myCapture recording': 'Grabación de myCapture',
+  'Drag to move': 'Arrastra para mover',
+  'Ready': 'Listo',
+  'Microphone': 'Micrófono',
+  'Desktop sound': 'Sonido del escritorio',
+  'Pause': 'Pausar',
+  'Resume': 'Reanudar',
+  'Show / hide camera': 'Mostrar / ocultar cámara',
+  'Finish recording': 'Terminar la grabación',
+  'Finish': 'Terminar',
+  'Discard recording': 'Descartar la grabación',
+  'Converting…': 'Convirtiendo…',
+  'Saving…': 'Guardando…',
+  'Recording failed': 'La grabación falló',
+  'Recording problem': 'Problema con la grabación',
+  'Microphone on': 'Micrófono activado',
+  'Microphone off': 'Micrófono desactivado',
+  'Desktop sound on': 'Sonido del escritorio activado',
+  'Desktop sound off': 'Sonido del escritorio desactivado',
+  'Starting in {0}': 'En {0}…',
+  'Starting…': 'Empezando…',
+});
+translatePage();
 hydrateIcons();
 const $ = id => document.getElementById(id);
 let state = 'countdown', busy = false, converting = false;
@@ -51,7 +75,7 @@ function setState(s) {
   TAURI.event.emit('rec-state', s);
   $('pause').disabled = $('stop').disabled = !(s === 'live' || s === 'paused');
   $('pause').innerHTML = icon(s === 'paused' ? 'play' : 'pause');
-  $('pause').title = s === 'paused' ? 'Resume' : 'Pause';
+  $('pause').title = s === 'paused' ? tr('Resume') : tr('Pause');
 }
 
 async function refresh() {
@@ -66,9 +90,9 @@ async function finish() {
   if (busy || !(state === 'live' || state === 'paused')) return;
   busy = true;
   setState('saving');
-  $('time').textContent = converting ? 'Converting…' : 'Saving…';
+  $('time').textContent = converting ? tr('Converting…') : tr('Saving…');
   try { await invoke('record_stop'); }
-  catch (err) { busy = false; Modal.error('Recording failed', err); }
+  catch (err) { busy = false; Modal.error(tr('Recording failed'), err); }
 }
 
 $('pause').onclick = async () => {
@@ -77,7 +101,7 @@ $('pause').onclick = async () => {
   try {
     if (state === 'live') { await invoke('record_pause'); setState('paused'); }
     else if (state === 'paused') { await invoke('record_resume'); setState('live'); }
-  } catch (err) { Modal.error('Recording problem', err); }
+  } catch (err) { Modal.error(tr('Recording problem'), err); }
   busy = false;
   refresh();
 };
@@ -92,17 +116,17 @@ addEventListener('keydown', e => { if (e.key === 'Escape') invoke('record_cancel
   const st = await invoke('record_status');
   converting = st.converts;
   $('mic').classList.toggle('on', st.mic);
-  $('mic').title = st.mic ? 'Microphone on' : 'Microphone off';
+  $('mic').title = st.mic ? tr('Microphone on') : tr('Microphone off');
   $('desk').classList.toggle('on', st.desktop_audio);
-  $('desk').title = st.desktop_audio ? 'Desktop sound on' : 'Desktop sound off';
+  $('desk').title = st.desktop_audio ? tr('Desktop sound on') : tr('Desktop sound off');
   $('cam').classList.toggle('on', st.camera);
   setState('countdown');
   for (let n = st.countdown; n > 0; n--) {
-    $('time').textContent = `Starting in ${n}`;
+    $('time').textContent = tr('Starting in {0}', n);
     await new Promise(r => setTimeout(r, 1000));
     if (state !== 'countdown') return;
   }
-  $('time').textContent = 'Starting…';
+  $('time').textContent = tr('Starting…');
   try {
     await invoke('record_resume');
     setState('live');

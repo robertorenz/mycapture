@@ -58,7 +58,7 @@ pub async fn upload(cfg: &UploadSettings, provider: &str, file: &Path, thumb: Op
         "s3" => upload_s3(cfg, file).await,
         id => match crate::cloud::Provider::from_id(id) {
             Some(p) => crate::cloud::upload(p, file, mime_for(file)).await,
-            None => Err("No upload destination is configured yet. Open Settings → Sharing to pick one.".into()),
+            None => Err(tr!("No upload destination is configured yet. Open Settings → Sharing to pick one.")),
         },
     }
 }
@@ -66,7 +66,7 @@ pub async fn upload(cfg: &UploadSettings, provider: &str, file: &Path, thumb: Op
 async fn upload_server(cfg: &UploadSettings, file: &Path, thumb: Option<&Path>) -> Result<String, String> {
     let base = cfg.server_url.trim().trim_end_matches('/');
     if base.is_empty() {
-        return Err("Set your myCapture server URL in Settings → Sharing.".into());
+        return Err(tr!("Set your myCapture server URL in Settings → Sharing."));
     }
     let mut form = reqwest::multipart::Form::new().part("file", file_part(file)?);
     if let Some(t) = thumb.filter(|t| t.exists()) {
@@ -78,19 +78,19 @@ async fn upload_server(cfg: &UploadSettings, file: &Path, thumb: Option<&Path>) 
         .multipart(form)
         .send()
         .await
-        .map_err(|e| format!("Upload failed: {e}"))?;
+        .map_err(|e| tr!("Upload failed: {}", e))?;
     let status = res.status();
     let body = res.text().await.map_err(|e| e.to_string())?;
     if !status.is_success() {
-        return Err(format!("Server said {status}: {body}"));
+        return Err(tr!("Server said {}: {}", status, body));
     }
     let v: serde_json::Value = serde_json::from_str(&body).map_err(|e| e.to_string())?;
-    json_path(&v, "url").ok_or_else(|| "Server response had no url".into())
+    json_path(&v, "url").ok_or_else(|| tr!("Server response had no url"))
 }
 
 async fn upload_http(cfg: &UploadSettings, file: &Path) -> Result<String, String> {
     if cfg.http_url.trim().is_empty() {
-        return Err("Set the upload URL in Settings → Sharing.".into());
+        return Err(tr!("Set the upload URL in Settings → Sharing."));
     }
     let field = if cfg.http_field.trim().is_empty() { "file".to_string() } else { cfg.http_field.trim().to_string() };
     let form = reqwest::multipart::Form::new().part(field, file_part(file)?);
@@ -100,17 +100,17 @@ async fn upload_http(cfg: &UploadSettings, file: &Path) -> Result<String, String
             req = req.header(k.trim(), v.trim());
         }
     }
-    let res = req.send().await.map_err(|e| format!("Upload failed: {e}"))?;
+    let res = req.send().await.map_err(|e| tr!("Upload failed: {}", e))?;
     let status = res.status();
     let body = res.text().await.map_err(|e| e.to_string())?;
     if !status.is_success() {
-        return Err(format!("Server said {status}: {body}"));
+        return Err(tr!("Server said {}: {}", status, body));
     }
     if cfg.http_url_path.trim().is_empty() {
         return Ok(body.trim().to_string());
     }
     let v: serde_json::Value = serde_json::from_str(&body).map_err(|e| e.to_string())?;
-    json_path(&v, cfg.http_url_path.trim()).ok_or_else(|| format!("No `{}` in response: {body}", cfg.http_url_path))
+    json_path(&v, cfg.http_url_path.trim()).ok_or_else(|| tr!("No `{}` in response: {}", cfg.http_url_path, body))
 }
 
 async fn upload_s3(cfg: &UploadSettings, file: &Path) -> Result<String, String> {
@@ -128,7 +128,7 @@ async fn upload_s3(cfg: &UploadSettings, file: &Path) -> Result<String, String> 
     bucket
         .put_object_with_content_type(&key, &bytes, mime_for(file))
         .await
-        .map_err(|e| format!("Upload failed: {e}"))?;
+        .map_err(|e| tr!("Upload failed: {}", e))?;
     if cfg.s3_public_url.trim().is_empty() {
         bucket.presign_get(&key, 7 * 24 * 3600, None).await.map_err(|e| e.to_string())
     } else {
