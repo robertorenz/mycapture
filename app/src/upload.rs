@@ -29,9 +29,30 @@ fn json_path(v: &serde_json::Value, path: &str) -> Option<String> {
     cur.as_str().map(|s| s.to_string())
 }
 
-/// Upload a capture and return the shareable URL.
-pub async fn upload(cfg: &UploadSettings, file: &Path, thumb: Option<&Path>) -> Result<String, String> {
-    match cfg.provider.as_str() {
+/// Every destination, in menu order.
+pub const DESTINATIONS: [(&str, &str); 6] = [
+    ("dropbox", "Dropbox"),
+    ("onedrive", "OneDrive"),
+    ("gdrive", "Google Drive"),
+    ("server", "myCapture server"),
+    ("s3", "S3 storage"),
+    ("http", "Custom upload"),
+];
+
+/// Whether a destination has what it needs to upload; `account` is its cloud sign-in, if any.
+pub fn configured(cfg: &UploadSettings, id: &str, account: Option<&String>) -> bool {
+    let set = |v: &str| !v.trim().is_empty();
+    match id {
+        "server" => set(&cfg.server_url),
+        "s3" => set(&cfg.s3_endpoint) && set(&cfg.s3_bucket) && set(&cfg.s3_access_key),
+        "http" => set(&cfg.http_url),
+        _ => account.is_some(),
+    }
+}
+
+/// Upload a capture to `provider` and return the shareable URL.
+pub async fn upload(cfg: &UploadSettings, provider: &str, file: &Path, thumb: Option<&Path>) -> Result<String, String> {
+    match provider {
         "server" => upload_server(cfg, file, thumb).await,
         "http" => upload_http(cfg, file).await,
         "s3" => upload_s3(cfg, file).await,

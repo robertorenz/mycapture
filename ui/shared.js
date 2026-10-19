@@ -51,6 +51,9 @@ const ICONS = {
   shape: '<rect x="4" y="4" width="16" height="16" rx="5"/>',
   share: '<path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v12M7 8l5-5 5 5"/>',
   image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
+  chevron: '<path d="M7 10l5 5 5-5"/>',
+  star: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',
+  cloud: '<path d="M7 18a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.4 1.6A3.8 3.8 0 0 1 17.5 18z"/>',
 };
 const icon = (name, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24">${ICONS[name] || ''}</svg>`;
 function hydrateIcons(root = document) {
@@ -120,3 +123,71 @@ function fmtDuration(sec) {
 document.addEventListener('contextmenu', e => {
   if (!e.target.closest('input, textarea, [contenteditable]')) e.preventDefault();
 });
+
+// Split "Share" button: the main half uploads to the default destination, the arrow lists every
+// destination that is set up (with a star to change the default) and a shortcut to Settings.
+const DEST_ICON = { dropbox: 'cloud', onedrive: 'cloud', gdrive: 'cloud', server: 'link', s3: 'folder', http: 'link' };
+function closeShareMenus() { document.querySelectorAll('.menu').forEach(m => m.remove()); }
+function shareButton({ id, label = 'Share link', showDest = false, onShared, onError = err => Modal.error('Upload failed', err) }) {
+  const wrap = document.createElement('div');
+  wrap.className = 'split';
+  wrap.innerHTML = `<button class="btn split-main">${icon('share')}<span>${esc(label)}</span><small class="split-dest"></small></button>`
+    + `<button class="btn split-more" title="Share to…" aria-haspopup="menu">${icon('chevron')}</button>`;
+  const [main, more] = wrap.children;
+  const targets = async () => (await invoke('share_targets')) || [];
+  const busy = on => { main.disabled = more.disabled = on; };
+  async function refresh(list) {
+    const d = (list || await targets()).find(t => t.default);
+    main.title = d ? `Upload to ${d.label} and copy the link` : 'Choose where to share';
+    if (showDest) wrap.querySelector('.split-dest').textContent = d ? `· ${d.label}` : '';
+  }
+  async function go(provider) {
+    closeShareMenus();
+    busy(true);
+    try { onShared?.(await invoke('share', { id: typeof id === 'function' ? id() : id, provider }), provider); }
+    catch (err) { onError(err); }
+    finally { busy(false); }
+  }
+  function openMenu(list) {
+    closeShareMenus();
+    const m = document.createElement('div');
+    m.className = 'menu';
+    m.setAttribute('role', 'menu');
+    m.innerHTML = (list.length
+      ? list.map(t => `<div class="menu-row">
+          <button class="menu-item" role="menuitem" data-p="${esc(t.id)}">${icon(DEST_ICON[t.id] || 'share')}<span class="mi-text"><b>${esc(t.label)}</b>${t.detail ? `<small>${esc(t.detail)}</small>` : ''}</span></button>
+          <button class="menu-star${t.default ? ' on' : ''}" data-star="${esc(t.id)}" title="${t.default ? 'Default for the Share button' : 'Make this the default'}">${icon('star')}</button>
+        </div>`).join('')
+      : '<div class="menu-empty">No sharing destination is set up yet.</div>')
+      + `<div class="menu-sep"></div><button class="menu-item" role="menuitem" data-setup>${icon('settings')}<span class="mi-text"><b>Set up sharing…</b></span></button>`;
+    document.body.appendChild(m);
+    const r = wrap.getBoundingClientRect(), mr = m.getBoundingClientRect();
+    const top = r.bottom + 6 + mr.height <= innerHeight - 8 ? r.bottom + 6 : Math.max(8, r.top - 6 - mr.height);
+    m.style.top = `${top}px`;
+    m.style.left = `${Math.max(8, Math.min(r.right - mr.width, innerWidth - mr.width - 8))}px`;
+    m.addEventListener('click', async e => {
+      const star = e.target.closest('[data-star]'), item = e.target.closest('.menu-item');
+      if (star) {
+        await invoke('set_share_default', { provider: star.dataset.star });
+        const fresh = await targets();
+        refresh(fresh);
+        openMenu(fresh);
+      } else if (item?.dataset.p) go(item.dataset.p);
+      else if (item && 'setup' in item.dataset) { closeShareMenus(); invoke('open_settings', { section: 'sharing' }); }
+    });
+    m.querySelector('.menu-item')?.focus();
+  }
+  main.onclick = async () => { const list = await targets(); list.some(t => t.default) ? go(null) : openMenu(list); };
+  more.onclick = async e => {
+    e.stopPropagation();
+    if (document.querySelector('.menu')) return closeShareMenus();
+    openMenu(await targets());
+  };
+  wrap.addEventListener('mouseenter', () => refresh(), { once: !showDest });
+  if (showDest) refresh();
+  return wrap;
+}
+addEventListener('mousedown', e => { if (!e.target.closest('.menu, .split-more')) closeShareMenus(); });
+addEventListener('keydown', e => { if (e.key === 'Escape' && document.querySelector('.menu')) { e.stopPropagation(); closeShareMenus(); } }, true);
+addEventListener('blur', closeShareMenus);
+addEventListener('resize', closeShareMenus);

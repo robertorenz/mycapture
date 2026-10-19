@@ -15,8 +15,12 @@ pub struct Item {
     pub height: u32,
     #[serde(default)]
     pub duration: f64,
+    /// Most recent share link (shown on the card and in the preview).
     #[serde(default)]
     pub url: Option<String>,
+    /// Share link per destination (`UploadSettings::provider` ids), so each upload happens once.
+    #[serde(default)]
+    pub links: std::collections::BTreeMap<String, String>,
 }
 
 impl Item {

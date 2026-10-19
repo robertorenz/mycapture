@@ -384,6 +384,7 @@ pub fn finalize(s: &Settings, mut r: Recording) -> Result<history::Item, String>
         height: r.crop.h as u32,
         duration: r.elapsed.as_secs_f64(),
         url: None,
+        links: Default::default(),
     };
     history::add(item.clone())?;
     Ok(item)

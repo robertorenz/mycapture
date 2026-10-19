@@ -128,7 +128,7 @@
 <footer>
   <button class="btn primary img-only" id="copy" data-icon="copy">Copy image</button>
   <button class="btn primary vid-only" id="copyVid" data-icon="copy">Copy video</button>
-  <button class="btn" id="share" data-icon="share">Share link</button>
+  <span id="shareSlot"></span>
   <button class="btn img-only" id="copyFile" data-icon="file">Copy as file</button>
   <button class="btn" id="saveAs" data-icon="save">Save as…</button>
   <span class="hint" id="hint">Paste anywhere with Ctrl+V — WhatsApp, Teams, Slack, email…</span>
@@ -864,12 +864,11 @@ function showUrl() {
 $('copy').onclick = () => run(() => invoke('copy_image', { id }), 'Image copied — paste it anywhere');
 $('copyVid').onclick = () => run(() => invoke('copy_file', { id }), 'Video copied — paste it into your chat');
 $('copyFile').onclick = () => run(() => invoke('copy_file', { id }), 'File copied — paste it into your chat');
-$('share').onclick = async () => {
-  const b = $('share');
-  b.disabled = true;
-  await run(async () => { item.url = await invoke('share', { id }); showUrl(); }, 'Link copied to the clipboard');
-  b.disabled = false;
-};
+$('shareSlot').replaceWith(shareButton({
+  id,
+  showDest: true,
+  onShared: url => { item.url = url; showUrl(); toast('Link copied to the clipboard'); },
+}));
 $('saveAs').onclick = () => run(() => invoke('save_as', { id }), saved => saved ? 'Saved' : null);
 $('urlChip').onclick = () => run(() => invoke('copy_text', { text: item.url }), 'Link copied');
 $('hist').onclick = () => invoke('open_history');

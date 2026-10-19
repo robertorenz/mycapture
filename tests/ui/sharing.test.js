@@ -74,6 +74,15 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   s = await state();
   check('disconnected', s.acct === 'Not connected' && s.btn === 'Connect', JSON.stringify(s));
 
+  // Picking a card only opens it; the default changes with Make default.
+  await page.click('.prov[data-p="gdrive"]');
+  check('opening a card keeps the default', await page.$eval('.prov[data-p="dropbox"]', e => e.classList.contains('is-def'))
+    && !(await page.$eval('#makeDef', e => e.disabled)), await page.$eval('#defNote', e => e.textContent));
+  await page.click('#makeDef');
+  await sleep(150);
+  const saved = await page.evaluate(() => window.__calls.filter(c => c[0] === 'set_settings').pop()[1].settings.upload.provider);
+  check('Make default saves it', saved === 'gdrive' && await page.$eval('.prov[data-p="gdrive"]', e => e.classList.contains('is-def')), saved);
+
   const cols = await page.$$eval('.prov', els => els.length);
   check('seven sharing choices', cols === 7, cols);
   await page.screenshot({ path: path.join(__dirname, 'out', 'sharing.png') });

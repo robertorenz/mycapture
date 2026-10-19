@@ -250,6 +250,7 @@ pub fn finish_image(app: &AppHandle, idx: usize, rect: Rect) -> Result<history::
         height: crop.height(),
         duration: 0.0,
         url: None,
+        links: Default::default(),
     };
     crop.save_with_format(captures_dir().join(&item.file), image::ImageFormat::Png).map_err(|e| e.to_string())?;
     history::make_image_thumb(&crop, &item.thumb_path())?;

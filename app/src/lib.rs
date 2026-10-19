@@ -193,7 +193,7 @@ async fn finish_image(app: AppHandle, window: WebviewWindow, rect: Rect) -> Resu
             let app2 = app.clone();
             let id = item.id.clone();
             tauri::async_runtime::spawn(async move {
-                match share_item(&app2, &id).await {
+                match share_item(&app2, &id, None).await {
                     Ok(url) => {
                         let _ = app2.emit("shared", (id, url));
                     }
@@ -576,15 +576,20 @@ fn copy_text(text: String) -> Result<(), String> {
     clip::text(&text)
 }
 
-async fn share_item(app: &AppHandle, id: &str) -> Result<String, String> {
+/// Upload (once per destination) and put the link on the clipboard. `None` = the default destination.
+async fn share_item(app: &AppHandle, id: &str, provider: Option<&str>) -> Result<String, String> {
     let mut it = history::get(id)?;
-    if let Some(url) = it.url.clone() {
+    let cfg = settings_of(app).upload;
+    let dest = provider.unwrap_or(&cfg.provider).to_string();
+    // Items shared before per-destination links existed only have `url`.
+    let legacy = (provider.is_none() && it.links.is_empty()).then(|| it.url.clone()).flatten();
+    if let Some(url) = it.links.get(&dest).cloned().or(legacy) {
         clip::text(&url)?;
         return Ok(url);
     }
-    let cfg = settings_of(app).upload;
     let thumb = it.thumb_path();
-    let url = upload::upload(&cfg, &it.path(), Some(&thumb)).await?;
+    let url = upload::upload(&cfg, &dest, &it.path(), Some(&thumb)).await?;
+    it.links.insert(dest, url.clone());
     it.url = Some(url.clone());
     history::update(&it)?;
     clip::text(&url)?;
@@ -592,10 +597,52 @@ async fn share_item(app: &AppHandle, id: &str) -> Result<String, String> {
     Ok(url)
 }
 
-/// Upload (once) and put the link on the clipboard.
 #[tauri::command]
-async fn share(app: AppHandle, id: String) -> Result<String, String> {
-    share_item(&app, &id).await
+async fn share(app: AppHandle, id: String, provider: Option<String>) -> Result<String, String> {
+    share_item(&app, &id, provider.as_deref()).await
+}
+
+#[derive(Serialize)]
+struct ShareTarget {
+    id: &'static str,
+    label: &'static str,
+    /// Signed-in account or host, shown under the name.
+    detail: String,
+    default: bool,
+}
+
+/// Destinations that are set up, for the Share menu.
+#[tauri::command]
+fn share_targets(app: AppHandle) -> Vec<ShareTarget> {
+    let cfg = settings_of(&app).upload;
+    let accounts = cloud::accounts();
+    let host = |u: &str| reqwest::Url::parse(u.trim()).ok().and_then(|u| u.host_str().map(String::from)).unwrap_or_default();
+    upload::DESTINATIONS
+        .iter()
+        .filter(|(id, _)| upload::configured(&cfg, id, accounts.get(*id)))
+        .map(|&(id, label)| ShareTarget {
+            id,
+            label,
+            detail: match id {
+                "server" => host(&cfg.server_url),
+                "s3" => cfg.s3_bucket.trim().to_string(),
+                "http" => host(&cfg.http_url),
+                _ => accounts.get(id).cloned().unwrap_or_default(),
+            },
+            default: cfg.provider == id,
+        })
+        .collect()
+}
+
+/// Make a destination the one the Share button uses.
+#[tauri::command]
+fn set_share_default(app: AppHandle, provider: String) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    let mut s = state.settings.lock().unwrap();
+    s.upload.provider = provider;
+    s.save()?;
+    let _ = app.emit("settings-changed", ());
+    Ok(())
 }
 
 #[tauri::command(async)]
@@ -651,8 +698,14 @@ fn open_history(app: AppHandle) -> Result<(), String> {
 
 // Creates windows: must not run on the main thread (WebView2 deadlocks).
 #[tauri::command(async)]
-fn open_settings(app: AppHandle) -> Result<(), String> {
-    open_page(&app, "settings", "settings.html", "myCapture — Settings", 780.0, 720.0).map(|_| ())
+fn open_settings(app: AppHandle, section: Option<String>) -> Result<(), String> {
+    let sec = section.unwrap_or_default();
+    let existed = app.get_webview_window("settings").is_some();
+    let win = open_page(&app, "settings", &format!("settings.html#{sec}"), "myCapture — Settings", 780.0, 720.0)?;
+    if existed && !sec.is_empty() {
+        let _ = win.emit("settings-section", sec);
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -742,12 +795,13 @@ fn list_mics(app: AppHandle) -> Vec<String> {
 }
 
 #[tauri::command]
-async fn test_upload(app: AppHandle) -> Result<String, String> {
+async fn test_upload(app: AppHandle, provider: Option<String>) -> Result<String, String> {
     let path = std::env::temp_dir().join("mycapture-test.png");
     image::RgbaImage::from_pixel(64, 64, image::Rgba([245, 158, 11, 255]))
         .save_with_format(&path, image::ImageFormat::Png)
         .map_err(|e| e.to_string())?;
-    upload::upload(&settings_of(&app).upload, &path, None).await
+    let cfg = settings_of(&app).upload;
+    upload::upload(&cfg, provider.as_deref().unwrap_or(&cfg.provider), &path, None).await
 }
 
 #[tauri::command]
@@ -878,7 +932,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
                 let _ = open_history(app.clone());
             }
             "settings" => {
-                let _ = open_settings(app.clone());
+                let _ = open_settings(app.clone(), None);
             }
             "moon" => {
                 let state = app.state::<AppState>();
@@ -968,6 +1022,8 @@ pub fn run() {
             copy_file,
             copy_text,
             share,
+            share_targets,
+            set_share_default,
             save_as,
             save_edited,
             open_editor,

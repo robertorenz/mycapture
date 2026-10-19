@@ -33,7 +33,13 @@
   .prov { border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 14px 12px; cursor: pointer; text-align: left; color: var(--text); font: inherit; }
   .prov b { display: block; margin-bottom: 3px; }
   .prov span { font-size: 12px; color: var(--muted); }
+  .prov { position: relative; }
   .prov.on { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245, 158, 11, .15); }
+  .prov .def { position: absolute; top: 10px; right: 10px; color: var(--accent); display: none; }
+  .prov .def svg.i { width: 15px; height: 15px; fill: currentColor; }
+  .prov.is-def .def { display: block; }
+  #makeDef.is-def { color: var(--accent); border-color: rgba(245, 158, 11, .5); opacity: 1; }
+  #makeDef.is-def svg.i { fill: currentColor; }
   .acct.on { color: var(--ok); }
   .ownapp { border-top: 1px solid var(--line); padding: 12px 0 4px; }
   .ownapp summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--muted); }
@@ -182,13 +188,13 @@
     <h2>Sharing</h2>
     <p>Where “Share link” uploads your captures. The link is copied so you can paste it into WhatsApp, Teams, Slack or email.</p>
     <div class="providers" id="providers">
-      <button class="prov" data-p="none"><b>Off</b><span>Copy &amp; paste only</span></button>
-      <button class="prov" data-p="dropbox"><b>Dropbox</b><span>Sign in with your account</span></button>
-      <button class="prov" data-p="onedrive"><b>OneDrive</b><span>Personal, work or school</span></button>
-      <button class="prov" data-p="gdrive"><b>Google Drive</b><span>Sign in with Google</span></button>
-      <button class="prov" data-p="server"><b>myCapture server</b><span>Self-hosted, included</span></button>
-      <button class="prov" data-p="s3"><b>S3 storage</b><span>R2, AWS, B2, MinIO</span></button>
-      <button class="prov" data-p="http"><b>Custom</b><span>Any upload endpoint</span></button>
+      <button class="prov" data-p="none"><span class="def" title="Default" data-icon="star"></span><b>Off</b><span>Copy &amp; paste only</span></button>
+      <button class="prov" data-p="dropbox"><span class="def" title="Default" data-icon="star"></span><b>Dropbox</b><span>Sign in with your account</span></button>
+      <button class="prov" data-p="onedrive"><span class="def" title="Default" data-icon="star"></span><b>OneDrive</b><span>Personal, work or school</span></button>
+      <button class="prov" data-p="gdrive"><span class="def" title="Default" data-icon="star"></span><b>Google Drive</b><span>Sign in with Google</span></button>
+      <button class="prov" data-p="server"><span class="def" title="Default" data-icon="star"></span><b>myCapture server</b><span>Self-hosted, included</span></button>
+      <button class="prov" data-p="s3"><span class="def" title="Default" data-icon="star"></span><b>S3 storage</b><span>R2, AWS, B2, MinIO</span></button>
+      <button class="prov" data-p="http"><span class="def" title="Default" data-icon="star"></span><b>Custom</b><span>Any upload endpoint</span></button>
     </div>
     <div class="card">
       <div class="pane" data-pane="none"><div class="note">Sharing is off. You can still copy images and video files and paste them straight into chat apps.</div></div>
@@ -258,6 +264,10 @@
           <label class="full">Extra headers (one per line)<textarea data-k="upload.http_headers" placeholder="Authorization: Bearer …"></textarea></label>
         </div>
       </div>
+      <div class="row" id="defRow">
+        <div class="lab"><b>Default for Share</b><span id="defNote"></span></div>
+        <div class="ctl"><button class="btn" id="makeDef"></button></div>
+      </div>
       <div class="row" id="testRow">
         <div class="lab"><b>Test</b><span id="testStatus">Uploads a small image to check the settings (save first).</span></div>
         <div class="ctl"><button class="btn" id="test" data-icon="share">Test upload</button></div>
@@ -292,11 +302,26 @@ document.querySelectorAll('nav a').forEach(a => a.onclick = () => {
   document.querySelectorAll('section').forEach(s => s.classList.toggle('on', s.id === a.dataset.sec));
 });
 
+// The card picked here is the one being edited; the starred one is what the Share button uses.
+let view = 'none';
+function renderDefault() {
+  const def = S.upload.provider || 'none', name = el => el.querySelector('b').textContent;
+  document.querySelectorAll('.prov').forEach(b => b.classList.toggle('is-def', b.dataset.p === def && def !== 'none'));
+  const mine = view === def, b = $('makeDef');
+  b.disabled = mine;
+  b.classList.toggle('is-def', mine);
+  b.innerHTML = mine ? `${icon('star')}Default` : `${icon('star')}Make default`;
+  const viewName = name(document.querySelector(`.prov[data-p="${view}"]`));
+  $('defNote').textContent = view === 'none'
+    ? (mine ? 'The Share button asks where to upload each time.' : 'With no default, the Share button asks where to upload each time.')
+    : (mine ? `The Share button uploads to ${viewName}. Its arrow lists everything else you set up.` : `Use ${viewName} when you click Share.`);
+}
 function setProvider(p) {
-  S.upload.provider = p;
+  view = p;
   document.querySelectorAll('.prov').forEach(b => b.classList.toggle('on', b.dataset.p === p));
   document.querySelectorAll('.pane').forEach(el => el.classList.toggle('on', el.dataset.pane === p));
   $('testRow').style.display = p === 'none' ? 'none' : 'flex';
+  renderDefault();
 }
 document.querySelectorAll('.prov').forEach(b => b.onclick = () => setProvider(b.dataset.p));
 
@@ -396,7 +421,7 @@ $('test').onclick = async () => {
   try {
     collect();
     await invoke('set_settings', { settings: S });
-    const url = await invoke('test_upload');
+    const url = await invoke('test_upload', { provider: view });
     st.innerHTML = `Worked: <a href="#" id="testLink">${esc(url)}</a>`;
     $('testLink').onclick = e => { e.preventDefault(); invoke('open_url', { url }); };
   } catch (err) {
@@ -410,6 +435,22 @@ $('save').onclick = async () => {
   catch (err) { Modal.error('Could not save settings', err); }
 };
 $('close').onclick = () => currentWindow().close();
+$('makeDef').onclick = async () => {
+  try {
+    collect();
+    S.upload.provider = view;
+    await invoke('set_settings', { settings: S });
+    renderDefault();
+    toast(view === 'none' ? 'Share will ask each time' : `${document.querySelector(`.prov[data-p="${view}"] b`).textContent} is now the default`);
+  } catch (err) { Modal.error('Could not save settings', err); }
+};
+function showSection(sec) {
+  const a = document.querySelector(`nav a[data-sec="${sec}"]`);
+  if (a) a.click();
+}
+// The star in a Share menu can change the default while this window is open.
+listen('settings-changed', async () => { const fresh = await invoke('get_settings'); S.upload.provider = fresh.upload.provider; renderDefault(); });
+listen('settings-section', e => showSection(e.payload));
 
 // ---------- cloud drives ----------
 const CLOUD_NAMES = { dropbox: 'Dropbox', onedrive: 'OneDrive', gdrive: 'Google Drive' };
@@ -444,6 +485,7 @@ document.querySelectorAll('.conn').forEach(b => b.onclick = async () => {
   } catch (err) { Modal.error(`Could not connect ${CLOUD_NAMES[id]}`, err); }
   b.disabled = false;
   loadCloud();
+  if (location.hash.length > 1) showSection(location.hash.slice(1));
 });
 document.querySelectorAll('.ownapp a[data-url]').forEach(a => a.onclick = e => { e.preventDefault(); invoke('open_url', { url: a.dataset.url }); });
 

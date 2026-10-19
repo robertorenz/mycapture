@@ -60,7 +60,7 @@ GitHub Actions builds the app and the server on all three platforms on every pus
 
 ## Cloud drives (Dropbox, OneDrive, Google Drive)
 
-Open Settings → Sharing, pick the service and click **Connect**. Your browser opens the service's sign-in page and then returns to myCapture on `http://localhost:53682/`. Captures go into a `myCapture` folder and are shared with a view-only link. Sign-ins are stored in `cloud.json` next to `settings.json`, not in the settings file itself.
+Open Settings → Sharing, pick the service and click **Connect**. Set up as many destinations as you like and star one with **Make default**: the **Share** button uploads there, and its arrow menu lets you pick any other destination you set up, or star a new default. Your browser opens the service's sign-in page and then returns to myCapture on `http://localhost:53682/`. Captures go into a `myCapture` folder and are shared with a view-only link. Sign-ins are stored in `cloud.json` next to `settings.json`, not in the settings file itself.
 
 Each service needs an OAuth app registration. A release build picks the keys up from these environment variables (GitHub secrets in the release workflow): `MYCAPTURE_DROPBOX_KEY`, `MYCAPTURE_ONEDRIVE_CLIENT_ID`, `MYCAPTURE_GDRIVE_CLIENT_ID` and `MYCAPTURE_GDRIVE_SECRET`. If a key isn't built in, the Sharing page shows step-by-step instructions for registering your own app and a field to paste its key.
 

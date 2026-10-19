@@ -82,11 +82,16 @@ function render() {
       <div class="info"><span>${esc(new Date(i.created).toLocaleString())}</span></div>
       <div class="acts">
         <button class="btn" data-act="copy" title="${i.kind === 'image' ? 'Copy image' : 'Copy video file'}">${icon('copy')}Copy</button>
-        <button class="btn" data-act="share" title="Upload and copy link">${icon('share')}Share</button>
+        <span class="share-slot"></span>
         <div class="spacer"></div>
         <button class="btn icon ghost danger" data-act="delete" title="Delete">${icon('trash')}</button>
       </div>
     </div>`).join('')}</div>`;
+  main.querySelectorAll('.card').forEach(card => card.querySelector('.share-slot').replaceWith(shareButton({
+    id: card.dataset.id,
+    label: 'Share',
+    onShared: () => toast('Link copied to the clipboard'),
+  })));
 }
 
 main.addEventListener('click', async e => {
@@ -95,13 +100,9 @@ main.addEventListener('click', async e => {
   const id = card.dataset.id;
   const act = e.target.closest('[data-act]')?.dataset.act;
   try {
+    if (e.target.closest('.split')) return;
     if (!act) return invoke('open_editor', { id });
     if (act === 'copy') { await invoke('copy_image', { id }); toast('Copied — paste it anywhere'); }
-    if (act === 'share') {
-      const b = e.target.closest('button');
-      b.disabled = true;
-      try { await invoke('share', { id }); toast('Link copied to the clipboard'); } finally { b.disabled = false; }
-    }
     if (act === 'delete' && await Modal.confirm('Delete this capture?', 'It will be removed from your history and disk.', 'Delete', true)) {
       await invoke('history_delete', { id });
     }
