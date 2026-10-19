@@ -24,9 +24,12 @@
     transition: transform .35s cubic-bezier(.3, 1.6, .5, 1);
   }
   .orb img { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .orb .surface { animation: turn 75s linear infinite; }
+  /* Seconds per turn, set from Settings → Moon speed; hovering turns it about 3.75× faster. */
+  :root { --turn: 75s; }
+  .orb .surface { animation: turn var(--turn) linear infinite; }
+  body.still .orb .surface { animation: none; }
   #moon:hover .orb, body.open #moon .orb { transform: scale(1.1); }
-  #moon:hover .surface, body.open #moon .surface { animation-duration: 20s; }
+  #moon:hover .surface, body.open #moon .surface { animation-duration: calc(var(--turn) / 3.75); }
   .spark {
     position: absolute; width: 11px; height: 11px; color: #fff;
     filter: drop-shadow(0 0 3px rgba(220, 236, 255, .95));
@@ -231,7 +234,13 @@ document.querySelectorAll('.ray').forEach(el => el.addEventListener('click', asy
   if (act === 'quit') invoke('quit');
 }));
 
-invoke('get_settings').then(s => setEdge(s.moon_edge || 'top'));
+const TURN = { slow: 150, normal: 75, fast: 35, faster: 15 };
+function setSpeed(speed) {
+  document.body.classList.toggle('still', speed === 'still');
+  document.documentElement.style.setProperty('--turn', `${TURN[speed] || TURN.normal}s`);
+}
+listen('moon-speed', e => setSpeed(e.payload));
+invoke('get_settings').then(s => { setEdge(s.moon_edge || 'top'); setSpeed(s.moon_speed); });
 </script>
 </body>
 </html>

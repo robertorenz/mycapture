@@ -912,6 +912,9 @@ fn set_settings(app: AppHandle, settings: Settings) -> Result<(), String> {
     if let Some(moon) = app.get_webview_window("moon") {
         let _ = if new.show_moon { moon.show() } else { moon.hide() };
     }
+    if new.moon_speed != old.moon_speed {
+        let _ = app.emit_to("moon", "moon-speed", new.moon_speed.clone());
+    }
     Ok(())
 }
 

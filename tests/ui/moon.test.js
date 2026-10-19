@@ -15,8 +15,8 @@ const check = (name, ok, extra = '') => { console.log(`${ok ? 'PASS' : 'FAIL'}  
   const page = await browser.newPage();
   await page.setViewport({ width: 72, height: 72, deviceScaleFactor: 4 });
   await page.evaluateOnNewDocument(`window.__TAURI__ = {
-    core: { invoke: async c => c === 'get_settings' ? { moon_edge: 'left' } : 'left' },
-    event: { listen: async () => () => {} },
+    core: { invoke: async c => c === 'get_settings' ? { moon_edge: 'left', moon_speed: 'fast' } : 'left' },
+    event: { listen: async (ev, cb) => { (window.__h = window.__h || {})[ev] = cb; return () => {}; } },
     window: { getCurrentWindow: () => ({}) },
   };`);
   page.on('pageerror', e => { console.log('PAGE ERROR', e.message); failures++; });
@@ -31,6 +31,12 @@ const check = (name, ok, extra = '') => { console.log(`${ok ? 'PASS' : 'FAIL'}  
   const a1 = await angle();
   await page.screenshot({ path: path.join(OUT, 'moon_b.png') });
   check('surface keeps turning', a0 !== a1, `${a0} -> ${a1}`);
+  const turn = () => page.evaluate(() => [getComputedStyle(document.querySelector('.surface')).animationDuration, getComputedStyle(document.querySelector('.surface')).animationName]);
+  check('speed comes from Settings', (await turn())[0] === '35s', JSON.stringify(await turn()));
+  await page.evaluate(() => window.__h['moon-speed']({ payload: 'still' }));
+  check('Still stops the moon', (await turn())[1] === 'none', JSON.stringify(await turn()));
+  await page.evaluate(() => window.__h['moon-speed']({ payload: 'normal' }));
+  check('Normal is 75 s per turn', JSON.stringify(await turn()) === JSON.stringify(['75s', 'turn']), JSON.stringify(await turn()));
   check('all three layers loaded', await page.evaluate(() => document.querySelectorAll('.orb img').length === 3));
 
   console.log(failures ? `${failures} FAILED` : 'ALL PASSED');

@@ -81,6 +81,8 @@ pub struct Settings {
     /// What to put on the clipboard right after a screenshot: "none" | "image" | "link"
     pub auto_copy: String,
     pub show_moon: bool,
+    /// How fast the moon's surface turns: "still" | "slow" | "normal" | "fast" | "faster"
+    pub moon_speed: String,
     /// Look for a new version on GitHub when myCapture starts.
     pub check_updates: bool,
     /// Newest version Settings was already opened for, so a found update is announced once.
@@ -115,6 +117,7 @@ impl Default for Settings {
             gif_fps: 12,
             auto_copy: "image".into(),
             show_moon: true,
+            moon_speed: "normal".into(),
             check_updates: true,
             announced_update: String::new(),
             start_at_login: true,
