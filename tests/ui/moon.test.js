@@ -38,6 +38,25 @@ const check = (name, ok, extra = '') => { console.log(`${ok ? 'PASS' : 'FAIL'}  
   await page.evaluate(() => window.__h['moon-speed']({ payload: 'normal' }));
   check('Normal is 75 s per turn', JSON.stringify(await turn()) === JSON.stringify(['75s', 'turn']), JSON.stringify(await turn()));
   check('all three layers loaded', await page.evaluate(() => document.querySelectorAll('.orb img').length === 3));
+  check('moon is the default body', await page.evaluate(() => !document.body.classList.contains('planet') && document.body.classList.contains('moon')));
+
+  // Every other body is painted on the canvas and keeps turning.
+  const pixels = () => page.evaluate(() => { const c = document.querySelector('.globe'); return c.toDataURL(); });
+  for (const id of ['sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto']) {
+    await page.evaluate(id => window.__h['moon-body']({ payload: id }), id);
+    const shown = await page.evaluate(() => getComputedStyle(document.querySelector('.globe')).display !== 'none' && getComputedStyle(document.querySelector('.orb img')).display === 'none');
+    const p0 = await pixels();
+    await new Promise(r => setTimeout(r, 900));
+    const p1 = await pixels();
+    check(`${id} is drawn and turns`, shown && p0 !== p1 && p0.length > 2000);
+    await page.screenshot({ path: path.join(OUT, `moon_${id}.png`) });
+  }
+  check('hide label names the body', await page.evaluate(() => document.getElementById('hideLbl').textContent === 'Hide Pluto'));
+  await page.evaluate(() => window.__h['moon-speed']({ payload: 'still' }));
+  const s0 = await pixels(); await new Promise(r => setTimeout(r, 600));
+  check('Still stops a planet too', s0 === await pixels());
+  await page.evaluate(() => window.__h['moon-body']({ payload: 'moon' }));
+  check('back to the moon', await page.evaluate(() => getComputedStyle(document.querySelector('.globe')).display === 'none'));
 
   console.log(failures ? `${failures} FAILED` : 'ALL PASSED');
   await browser.close();

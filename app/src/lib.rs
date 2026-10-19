@@ -915,6 +915,9 @@ fn set_settings(app: AppHandle, settings: Settings) -> Result<(), String> {
     if new.moon_speed != old.moon_speed {
         let _ = app.emit_to("moon", "moon-speed", new.moon_speed.clone());
     }
+    if new.moon_body != old.moon_body {
+        let _ = app.emit_to("moon", "moon-body", new.moon_body.clone());
+    }
     Ok(())
 }
 

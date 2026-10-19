@@ -19,11 +19,19 @@
   /* Layers: fixed glow, a slowly turning surface, fixed lighting on top, twinkling sparkles. */
   .orb {
     position: relative; width: 70px; height: 70px; pointer-events: none;
+    --halo: #c8e4ff;
     filter: drop-shadow(0 1px 2px rgba(15, 23, 42, .45));
     animation: shimmer 5s ease-in-out infinite;
     transition: transform .35s cubic-bezier(.3, 1.6, .5, 1);
   }
-  .orb img { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .orb img, .orb .globe, .orb .halo { position: absolute; inset: 0; width: 100%; height: 100%; }
+  /* Every body but the moon is painted on the canvas by bodies.js, over a soft glow. */
+  .orb .globe, .orb .halo { display: none; }
+  body.planet .orb img { display: none; }
+  body.planet .orb .globe, body.planet .orb .halo { display: block; }
+  .orb .halo { border-radius: 50%; background: radial-gradient(circle, var(--glow) 0 40%, transparent 60%); }
+  body.sun .orb .halo { background: radial-gradient(circle, rgba(255, 236, 170, .95) 0 34%, var(--glow) 42%, rgba(255, 140, 40, .35) 52%, transparent 70%); animation: corona 4s ease-in-out infinite; }
+  @keyframes corona { 50% { transform: scale(1.07); opacity: .85; } }
   /* Seconds per turn, set from Settings → Moon speed; hovering turns it about 3.75× faster. */
   :root { --turn: 75s; }
   .orb .surface { animation: turn var(--turn) linear infinite; }
@@ -45,8 +53,8 @@
     45% { opacity: 1; transform: scale(1) rotate(25deg); }
     60% { opacity: .9; transform: scale(.9) rotate(30deg); }
   }
-  @keyframes shimmer { 50% { filter: drop-shadow(0 1px 2px rgba(15, 23, 42, .45)) drop-shadow(0 0 7px rgba(200, 228, 255, .75)) brightness(1.06); } }
-  @media (prefers-reduced-motion: reduce) { .orb, .orb .surface, .spark { animation: none; } }
+  @keyframes shimmer { 50% { filter: drop-shadow(0 1px 2px rgba(15, 23, 42, .45)) drop-shadow(0 0 7px var(--halo)) brightness(1.06); } }
+  @media (prefers-reduced-motion: reduce) { .orb, .orb .surface, .orb .halo, .spark { animation: none !important; } }
 
   .ray {
     position: absolute; width: 50px; height: 50px; margin: -25px 0 0 -25px;
@@ -76,6 +84,8 @@
       <img src="moon-glow.png" alt="">
       <img class="surface" src="moon-surface.png" alt="">
       <img src="moon-light.png" alt="">
+      <div class="halo"></div>
+      <canvas class="globe"></canvas>
       <span class="spark s1"><svg viewBox="0 0 20 20"><path fill="currentColor" d="M10 0l1.8 8.2L20 10l-8.2 1.8L10 20l-1.8-8.2L0 10l8.2-1.8z"/></svg></span>
       <span class="spark s2"><svg viewBox="0 0 20 20"><path fill="currentColor" d="M10 0l1.8 8.2L20 10l-8.2 1.8L10 20l-1.8-8.2L0 10l8.2-1.8z"/></svg></span>
       <span class="spark s3"><svg viewBox="0 0 20 20"><path fill="currentColor" d="M10 0l1.8 8.2L20 10l-8.2 1.8L10 20l-1.8-8.2L0 10l8.2-1.8z"/></svg></span>
@@ -88,10 +98,11 @@
 
   <div class="ray extra" data-act="camera"><span data-icon="webcam"></span><span class="lbl">Camera</span></div>
   <div class="ray extra" data-act="settings"><span data-icon="settings"></span><span class="lbl">Settings</span></div>
-  <div class="ray extra" data-act="hide"><span data-icon="eyeoff"></span><span class="lbl">Hide moon</span></div>
+  <div class="ray extra" data-act="hide"><span data-icon="eyeoff"></span><span class="lbl" id="hideLbl">Hide moon</span></div>
   <div class="ray extra" data-act="quit"><span data-icon="power"></span><span class="lbl">Quit</span></div>
 </div>
 <script src="shared.js"></script>
+<script src="bodies.js"></script>
 <script>
 addStrings({
   'Capture': 'Capturar',
@@ -100,6 +111,7 @@ addStrings({
   'Camera': 'Cámara',
   'Settings': 'Configuración',
   'Hide moon': 'Ocultar luna',
+  'Hide {0}': 'Ocultar {0}',
   'Quit': 'Salir',
 });
 translatePage();
@@ -235,12 +247,47 @@ document.querySelectorAll('.ray').forEach(el => el.addEventListener('click', asy
 }));
 
 const TURN = { slow: 150, normal: 75, fast: 35, faster: 15 };
+let turnSecs = TURN.normal;
 function setSpeed(speed) {
   document.body.classList.toggle('still', speed === 'still');
-  document.documentElement.style.setProperty('--turn', `${TURN[speed] || TURN.normal}s`);
+  turnSecs = TURN[speed] || TURN.normal;
+  document.documentElement.style.setProperty('--turn', `${turnSecs}s`);
+  spinGlobe();
+}
+
+// Planets turn by redrawing the canvas only as often as the surface visibly moves.
+const canvas = document.querySelector('.globe'), orb = document.querySelector('.orb');
+const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+let globe = null, spin = 0, last = 0, timer = null;
+function spinGlobe() {
+  clearTimeout(timer);
+  timer = null;
+  if (!globe) return;
+  const now = performance.now(), still = body.classList.contains('still') || reduced.matches;
+  const fast = moon.matches(':hover') || body.classList.contains('open');
+  const secs = fast ? turnSecs / 3.75 : turnSecs;
+  if (last && !still) spin += (now - last) / 1000 / secs;
+  last = now;
+  globe.draw(-spin);
+  if (!still) timer = setTimeout(spinGlobe, Math.max(16, secs * 1000 * .15 / MAP_W));
+}
+function setBody(id) {
+  const b = bodyOf(id);
+  body.classList.remove(...BODIES.map(x => x.id));
+  body.classList.add(b.id);
+  body.classList.toggle('planet', b.id !== 'moon');
+  orb.style.setProperty('--halo', b.halo);
+  if (b.glow) orb.style.setProperty('--glow', b.glow);
+  document.getElementById('hideLbl').textContent = b.id === 'moon' ? tr('Hide moon') : tr('Hide {0}', LANG === 'es' ? b.es : b.name);
+  if (b.id === 'moon') { globe = null; spinGlobe(); return; }
+  canvas.width = canvas.height = Math.round(70 * Math.max(1, devicePixelRatio || 1));
+  globe ? globe.set(b.id) : (globe = new Globe(canvas, b.id));
+  last = 0;
+  spinGlobe();
 }
 listen('moon-speed', e => setSpeed(e.payload));
-invoke('get_settings').then(s => { setEdge(s.moon_edge || 'top'); setSpeed(s.moon_speed); });
+listen('moon-body', e => setBody(e.payload));
+invoke('get_settings').then(s => { setEdge(s.moon_edge || 'top'); setSpeed(s.moon_speed); setBody(s.moon_body); });
 </script>
 </body>
 </html>

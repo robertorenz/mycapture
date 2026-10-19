@@ -65,6 +65,12 @@
   .meter { height: 8px; border-radius: 99px; background: #0d1527; border: 1px solid var(--line); overflow: hidden; margin: 2px 0 12px; display: none; }
   .meter.on { display: block; }
   .meter i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  .bodies { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; width: 100%; }
+  .body-tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px 7px; border-radius: 10px; border: 1px solid var(--line); background: #0d1527; color: var(--muted); font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
+  .body-tile canvas { width: 52px; height: 52px; transition: transform .2s cubic-bezier(.3, 1.6, .5, 1); }
+  .body-tile:hover { background: var(--panel-2); color: var(--text); }
+  .body-tile:hover canvas { transform: scale(1.08); }
+  .body-tile.on { border-color: var(--accent); color: var(--text); box-shadow: 0 0 0 3px rgba(245, 158, 11, .15); }
   @media (max-width: 700px) { .providers { grid-template-columns: 1fr 1fr; } .row .ctl { width: 180px; } }
 </style>
 </head>
@@ -96,6 +102,10 @@
       <div class="row">
         <div class="lab"><b>Show the moon</b><span>The floating moon launcher. You can always use the tray icon instead.</span></div>
         <div class="ctl"><label class="switch"><input type="checkbox" data-k="show_moon"><span></span></label></div>
+      </div>
+      <div class="row stack">
+        <div class="lab"><b>Launcher look</b><span>Show the moon, the sun or a planet as the floating launcher.</span></div>
+        <div class="ctl"><input type="hidden" data-k="moon_body" id="moonBody"><div class="bodies" id="bodies"></div></div>
       </div>
       <div class="row">
         <div class="lab"><b>Moon speed</b><span>How fast the moon turns. It speeds up while you hover it.</span></div>
@@ -334,6 +344,7 @@
   <button class="btn primary" id="save" data-icon="check">Save settings</button>
 </footer>
 <script src="shared.js"></script>
+<script src="bodies.js"></script>
 <script>
 addStrings({
   "myCapture — Settings": "myCapture: Configuración",
@@ -350,6 +361,8 @@ addStrings({
   "Click, then press a key combination": "Haz clic y luego pulsa una combinación de teclas",
   "Show the moon": "Mostrar la luna",
   "Moon speed": "Velocidad de la luna",
+  "Launcher look": "Aspecto del lanzador",
+  "Show the moon, the sun or a planet as the floating launcher.": "Muestra la luna, el sol o un planeta como lanzador flotante.",
   "How fast the moon turns. It speeds up while you hover it.": "Qué tan rápido gira la luna. Se acelera al pasar el puntero.",
   "Still": "Quieta",
   "Slow": "Lenta",
@@ -564,8 +577,21 @@ function fill() {
     else el.value = v ?? '';
   });
   $('hotkey').value = S.hotkey;
+  markBody();
   setProvider(S.upload.provider || 'none');
 }
+
+// Launcher look: one tile per body, painted by bodies.js a little at a time so the window opens fast.
+function markBody() {
+  const cur = bodyOf($('moonBody').value).id;
+  document.querySelectorAll('.body-tile').forEach(t => t.classList.toggle('on', t.dataset.body === cur));
+}
+$('bodies').innerHTML = BODIES.map(b => `<button type="button" class="body-tile" data-body="${b.id}" title="${esc(LANG === 'es' ? b.es : b.name)}">
+  <canvas width="104" height="104"></canvas>${esc(LANG === 'es' ? b.es : b.name)}</button>`).join('');
+document.querySelectorAll('.body-tile').forEach((t, i) => {
+  setTimeout(() => paintBody(t.querySelector('canvas'), t.dataset.body), 30 * i);
+  t.onclick = () => { $('moonBody').value = t.dataset.body; markBody(); };
+});
 
 function collect() {
   document.querySelectorAll('[data-k]').forEach(el => {
