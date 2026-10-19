@@ -40,6 +40,7 @@
   <span class="size" id="size"></span>
   <button class="btn primary" id="bImage" title="Screenshot (Enter)" data-icon="camera">Image</button>
   <button class="btn" id="bVideo" title="Record video of this area" data-icon="video">Video</button>
+  <button class="btn" id="bScroll" title="Scrolling capture: scroll the page and it's stitched into one tall image (S)" data-icon="scroll">Scrolling</button>
   <span class="sep"></span>
   <button class="btn icon ghost" id="bRedo" title="Select again" data-icon="redo"></button>
   <button class="btn icon ghost danger" id="bCancel" title="Cancel (Esc)" data-icon="x"></button>
@@ -58,6 +59,9 @@ addStrings({
   'Cancel (Esc)': 'Cancelar (Esc)',
   'Could not save the screenshot': 'No se pudo guardar la captura',
   'Could not start recording': 'No se pudo iniciar la grabación',
+  "Scrolling capture: scroll the page and it's stitched into one tall image (S)": 'Captura con desplazamiento: desplaza la página y se une en una sola imagen larga (S)',
+  'Scrolling': 'Desplazamiento',
+  'Could not start the scrolling capture': 'No se pudo iniciar la captura con desplazamiento',
 });
 translatePage();
 hydrateIcons();
@@ -265,10 +269,19 @@ async function takeVideo() {
   catch (err) { mode = 'selected'; draw(); Modal.error(tr('Could not start recording'), err); }
 }
 
+async function takeScroll() {
+  if (!sel || mode === 'busy') return;
+  mode = 'busy';
+  draw();
+  try { await invoke('start_scroll', { rect: toImg(sel) }); }
+  catch (err) { mode = 'selected'; draw(); Modal.error(tr('Could not start the scrolling capture'), err); }
+}
+
 function reselect() { sel = null; mode = 'hover'; hoverRect = windowAt(cur); draw(); }
 
 document.getElementById('bImage').onclick = takeImage;
 document.getElementById('bVideo').onclick = takeVideo;
+document.getElementById('bScroll').onclick = takeScroll;
 document.getElementById('bRedo').onclick = reselect;
 document.getElementById('bCancel').onclick = () => invoke('cancel_capture');
 bar.addEventListener('mousedown', e => e.stopPropagation());
@@ -278,6 +291,7 @@ window.addEventListener('keydown', e => {
   if (e.key === 'Escape') invoke('cancel_capture');
   if (e.key === 'Enter' && sel && mode === 'selected') takeImage();
   if ((e.key === 'v' || e.key === 'V') && sel && mode === 'selected') takeVideo();
+  if ((e.key === 's' || e.key === 'S') && sel && mode === 'selected') takeScroll();
 });
 
 window.addEventListener('resize', resize);

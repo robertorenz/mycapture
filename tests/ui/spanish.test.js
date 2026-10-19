@@ -23,6 +23,7 @@ const mock = (kind, lang) => `
       if (cmd === 'record_status') return { active: true, paused: false, elapsed: 3, countdown: 0, mic: true, desktop_audio: true, camera: false, converts: false };
       if (cmd === 'list_mics' || cmd === 'list_codecs') return [];
       if (cmd === 'check_ffmpeg') return 'ffmpeg';
+      if (cmd === 'scroll_info') return { auto_supported: true };
       return null;
     } },
     app: { getVersion: async () => '1.0.0' },
@@ -64,7 +65,7 @@ const leftovers = p => p.evaluate(() => {
 (async () => {
   const browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true, args: ['--allow-file-access-from-files'] });
 
-  const pages = [['editor.html?id=x'], ['history.html'], ['overlay.html?i=0'], ['recbar.html', 'image', 'es', 400, 56], ['moon.html', 'image', 'es', 300, 200], ['notice.html?msg=x', 'image', 'es', 460, 260], ['camera.html', 'image', 'es', 220, 220], ['settings.html']];
+  const pages = [['editor.html?id=x'], ['history.html'], ['overlay.html?i=0'], ['recbar.html', 'image', 'es', 400, 56], ['moon.html', 'image', 'es', 300, 200], ['notice.html?msg=x', 'image', 'es', 460, 260], ['camera.html', 'image', 'es', 220, 220], ['scroll.html', 'image', 'es', 470, 56], ['settings.html']];
   for (const args of pages) {
     const p = await open(browser, ...args);
     if (args[0] === 'settings.html') {

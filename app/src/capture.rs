@@ -144,6 +144,9 @@ pub fn begin(app: &AppHandle) -> Result<(), String> {
     if state.rec.lock().unwrap().is_some() {
         return Err(tr!("A recording is in progress."));
     }
+    if state.scroll.lock().unwrap().is_some() {
+        return Err(tr!("A scrolling capture is in progress."));
+    }
     if !state.pending.lock().unwrap().is_empty() {
         if let Some(w) = app.webview_windows().into_values().find(|w| overlay_index(w.label()).is_some()) {
             let _ = w.set_focus();
@@ -238,7 +241,11 @@ pub fn take(app: &AppHandle, idx: usize) -> Result<Pending, String> {
 pub fn finish_image(app: &AppHandle, idx: usize, rect: Rect) -> Result<history::Item, String> {
     let pending = take(app, idx)?;
     let r = clip(rect, pending.image.width(), pending.image.height()).ok_or_else(|| tr!("Selection is too small"))?;
-    let crop = image::imageops::crop_imm(&pending.image, r.x as u32, r.y as u32, r.w as u32, r.h as u32).to_image();
+    save_image(&image::imageops::crop_imm(&pending.image, r.x as u32, r.y as u32, r.w as u32, r.h as u32).to_image())
+}
+
+/// Store an image capture in history.
+pub fn save_image(crop: &image::RgbaImage) -> Result<history::Item, String> {
     let id = history::new_id();
     let item = history::Item {
         file: format!("{id}.png"),
@@ -253,7 +260,7 @@ pub fn finish_image(app: &AppHandle, idx: usize, rect: Rect) -> Result<history::
         links: Default::default(),
     };
     crop.save_with_format(captures_dir().join(&item.file), image::ImageFormat::Png).map_err(|e| e.to_string())?;
-    history::make_image_thumb(&crop, &item.thumb_path())?;
+    history::make_image_thumb(crop, &item.thumb_path())?;
     history::add(item.clone())?;
     Ok(item)
 }

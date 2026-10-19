@@ -76,6 +76,8 @@ const ES: &[(&str, &str)] = &[
     ("Could not start ffmpeg ({}). Install it or set its path in Settings.", "No se pudo iniciar ffmpeg ({}). Instálalo o indica su ruta en Configuración."),
     ("ffmpeg stopped unexpectedly.", "ffmpeg se detuvo inesperadamente."),
     ("Nothing was recorded.", "No se grabó nada."),
+    ("Nothing was captured.", "No se capturó nada."),
+    ("A scrolling capture is in progress.", "Hay una captura con desplazamiento en curso."),
     ("Could not finish the video. The raw recording is kept in {}", "No se pudo terminar el video. La grabación sin procesar se guardó en {}"),
     ("{} (included with myCapture)", "{} (incluido con myCapture)"),
     ("Unknown service", "Servicio desconocido"),

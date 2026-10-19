@@ -8,7 +8,9 @@ mod history;
 #[cfg(windows)]
 mod loopback;
 mod record;
+mod scroll;
 mod settings;
+mod stitch;
 mod upload;
 
 use capture::Rect;
@@ -32,6 +34,7 @@ pub struct AppState {
     /// Frozen monitors while the capture overlays are open (empty otherwise).
     pub pending: Mutex<Vec<capture::Pending>>,
     pub rec: Mutex<Option<record::Recording>>,
+    pub scroll: Mutex<Option<scroll::Session>>,
     /// Whether the moon's menu is fanned out.
     pub moon: Mutex<bool>,
     /// Cursor and window position when a moon drag started.
@@ -145,6 +148,16 @@ fn spawn_capture(app: &AppHandle) {
         let _ = app.emit_to("recbar", "rec-hotkey", ());
         return;
     }
+    // Same for a scrolling capture: the hotkey means "done".
+    if app.state::<AppState>().scroll.lock().unwrap().is_some() {
+        let app = app.clone();
+        std::thread::spawn(move || {
+            if let Err(e) = scroll_finish(app.clone()) {
+                report_error(&app, &e);
+            }
+        });
+        return;
+    }
     let app = app.clone();
     std::thread::spawn(move || {
         if let Err(e) = capture::begin(&app) {
@@ -184,6 +197,12 @@ fn cancel_capture(app: AppHandle) {
 #[tauri::command(async)]
 async fn finish_image(app: AppHandle, window: WebviewWindow, rect: Rect) -> Result<(), String> {
     let item = capture::finish_image(&app, overlay_of(&window)?, rect)?;
+    image_done(&app, item)
+}
+
+/// After a screenshot is saved: auto-copy or auto-share as set, then open it.
+fn image_done(app: &AppHandle, item: history::Item) -> Result<(), String> {
+    let app = app.clone();
     show_moon(&app);
     notify_history(&app);
     let s = settings_of(&app);
@@ -228,54 +247,7 @@ fn start_video(app: AppHandle, window: WebviewWindow, rect: Rect) -> Result<(), 
     };
     let screen_rect = p.to_physical(r);
     let mon = p.to_physical(Rect { x: 0, y: 0, w: iw, h: ih });
-
-    // Border just outside the region (excluded from capture where the OS allows it).
-    let b = 4;
-    let frame = WebviewWindowBuilder::new(&app, "frame", WebviewUrl::App("frame.html".into()))
-        .title("myCapture region")
-        .decorations(false)
-        .transparent(true)
-        .shadow(false)
-        .resizable(false)
-        .always_on_top(true)
-        .skip_taskbar(true)
-        .focused(false)
-        .visible(false)
-        .build()
-        .map_err(|e| e.to_string())?;
-    let _ = frame.set_position(PhysicalPosition::new(screen_rect.x - b, screen_rect.y - b));
-    let _ = frame.set_size(PhysicalSize::new((screen_rect.w + 2 * b) as u32, (screen_rect.h + 2 * b) as u32));
-    let _ = frame.set_ignore_cursor_events(true);
-    let _ = frame.set_content_protected(true);
-    let _ = frame.show();
-
-    // Control bar below the region, else above it, else inside the bottom edge.
-    let bar = WebviewWindowBuilder::new(&app, "recbar", WebviewUrl::App("recbar.html".into()))
-        .title("myCapture recording")
-        .inner_size(400.0, 56.0)
-        .decorations(false)
-        .transparent(true)
-        .shadow(false)
-        .resizable(false)
-        .always_on_top(true)
-        .skip_taskbar(true)
-        .visible(false)
-        .build()
-        .map_err(|e| e.to_string())?;
-    let sc = bar.scale_factor().unwrap_or(1.0);
-    let (bw, bh) = ((400.0 * sc) as i32, (56.0 * sc) as i32);
-    let gap = (10.0 * sc) as i32;
-    let bx = (screen_rect.x + screen_rect.w / 2 - bw / 2).clamp(mon.x, mon.x + mon.w - bw);
-    let by = if screen_rect.y + screen_rect.h + gap + bh <= mon.y + mon.h {
-        screen_rect.y + screen_rect.h + gap
-    } else if screen_rect.y - gap - bh >= mon.y {
-        screen_rect.y - gap - bh
-    } else {
-        screen_rect.y + screen_rect.h - bh - gap
-    };
-    let _ = bar.set_position(PhysicalPosition::new(bx, by));
-    let _ = bar.set_content_protected(true);
-    let _ = bar.show();
+    region_chrome(&app, screen_rect, mon, "recbar", "recbar.html", 400.0)?;
 
     let s = settings_of(&app);
     let mut opened_camera = false;
@@ -300,6 +272,59 @@ fn start_video(app: AppHandle, window: WebviewWindow, rect: Rect) -> Result<(), 
         opened_camera,
         codec: s.video_codec.clone(),
     });
+    Ok(())
+}
+
+/// Border around a recorded region plus its control bar (below it, else above, else inside).
+/// Both are excluded from screen capture where the OS allows it.
+fn region_chrome(app: &AppHandle, screen_rect: Rect, mon: Rect, bar_label: &str, bar_page: &str, bar_w: f64) -> Result<(), String> {
+    let b = 4;
+    let frame = WebviewWindowBuilder::new(app, "frame", WebviewUrl::App("frame.html".into()))
+        .title("myCapture region")
+        .decorations(false)
+        .transparent(true)
+        .shadow(false)
+        .resizable(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .focused(false)
+        .visible(false)
+        .build()
+        .map_err(|e| e.to_string())?;
+    let _ = frame.set_position(PhysicalPosition::new(screen_rect.x - b, screen_rect.y - b));
+    let _ = frame.set_size(PhysicalSize::new((screen_rect.w + 2 * b) as u32, (screen_rect.h + 2 * b) as u32));
+    let _ = frame.set_ignore_cursor_events(true);
+    let _ = frame.set_content_protected(true);
+    let _ = frame.show();
+
+    // Control bar below the region, else above it, else inside the bottom edge.
+    let bar = WebviewWindowBuilder::new(app, bar_label, WebviewUrl::App(bar_page.into()))
+        .title("myCapture")
+        .inner_size(bar_w, 56.0)
+        .decorations(false)
+        .transparent(true)
+        .shadow(false)
+        .resizable(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .visible(false)
+        .build()
+        .map_err(|e| e.to_string())?;
+    let sc = bar.scale_factor().unwrap_or(1.0);
+    let (bw, bh) = ((bar_w * sc) as i32, (56.0 * sc) as i32);
+    let gap = (10.0 * sc) as i32;
+    let bx = (screen_rect.x + screen_rect.w / 2 - bw / 2).clamp(mon.x, mon.x + mon.w - bw);
+    let by = if screen_rect.y + screen_rect.h + gap + bh <= mon.y + mon.h {
+        screen_rect.y + screen_rect.h + gap
+    } else if screen_rect.y - gap - bh >= mon.y {
+        screen_rect.y - gap - bh
+    } else {
+        screen_rect.y + screen_rect.h - bh - gap
+    };
+    let _ = bar.set_position(PhysicalPosition::new(bx, by));
+    let _ = bar.set_content_protected(true);
+    let _ = bar.show();
+
     Ok(())
 }
 
@@ -393,6 +418,71 @@ fn record_stop(app: AppHandle) -> Result<(), String> {
 #[tauri::command(async)]
 fn record_cancel(app: AppHandle) {
     abort_recording(&app);
+}
+
+// ---------- scrolling capture ----------
+
+/// Start a scrolling capture of the selected region; the overlay closes so the page can be scrolled.
+#[tauri::command(async)]
+fn start_scroll(app: AppHandle, window: WebviewWindow, rect: Rect) -> Result<(), String> {
+    let p = capture::take(&app, overlay_of(&window)?)?;
+    let (iw, ih) = (p.image.width() as i32, p.image.height() as i32);
+    let mut r = rect;
+    r.x = r.x.clamp(0, iw - 2);
+    r.y = r.y.clamp(0, ih - 2);
+    r.w = r.w.min(iw - r.x).max(2);
+    r.h = r.h.min(ih - r.y).max(2);
+    let screen_rect = p.to_physical(r);
+    let mon = p.to_physical(Rect { x: 0, y: 0, w: iw, h: ih });
+    region_chrome(&app, screen_rect, mon, "scrollbar", "scroll.html", 470.0)?;
+    let center = (screen_rect.x + screen_rect.w / 2, screen_rect.y + screen_rect.h / 2);
+    // Let the overlay disappear before the first frame is grabbed.
+    std::thread::sleep(std::time::Duration::from_millis(150));
+    *app.state::<AppState>().scroll.lock().unwrap() = Some(scroll::Session::start(app.clone(), p.screen_index, r, center));
+    Ok(())
+}
+
+#[derive(Serialize)]
+struct ScrollInfo {
+    auto_supported: bool,
+}
+
+#[tauri::command]
+fn scroll_info() -> ScrollInfo {
+    ScrollInfo { auto_supported: scroll::AUTO_SUPPORTED }
+}
+
+#[tauri::command]
+fn scroll_auto(app: AppHandle, on: bool) {
+    if let Some(s) = app.state::<AppState>().scroll.lock().unwrap().as_ref() {
+        s.set_auto(on);
+    }
+}
+
+#[tauri::command(async)]
+fn scroll_finish(app: AppHandle) -> Result<(), String> {
+    let session = app.state::<AppState>().scroll.lock().unwrap().take().ok_or_else(|| tr!("Nothing was captured."))?;
+    close_window(&app, "frame");
+    close_window(&app, "scrollbar");
+    let img = session.finish();
+    let item = img.and_then(|img| capture::save_image(&img));
+    match item {
+        Ok(item) => image_done(&app, item),
+        Err(e) => {
+            // The bar is gone by now, so report in the notice window.
+            show_moon(&app);
+            report_error(&app, &e);
+            Ok(())
+        }
+    }
+}
+
+#[tauri::command(async)]
+fn scroll_cancel(app: AppHandle) {
+    drop(app.state::<AppState>().scroll.lock().unwrap().take());
+    close_window(&app, "frame");
+    close_window(&app, "scrollbar");
+    show_moon(&app);
 }
 
 // ---------- camera ----------
@@ -1003,6 +1093,7 @@ pub fn run() {
             settings: Mutex::new(settings),
             pending: Mutex::new(Vec::new()),
             rec: Mutex::new(None),
+            scroll: Mutex::new(None),
             moon: Mutex::new(false),
             moon_drag: Mutex::new(None),
         })
@@ -1022,6 +1113,11 @@ pub fn run() {
             record_pause,
             record_stop,
             record_cancel,
+            start_scroll,
+            scroll_info,
+            scroll_auto,
+            scroll_finish,
+            scroll_cancel,
             toggle_camera,
             camera_set_size,
             moon_expand,

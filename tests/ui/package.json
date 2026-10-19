@@ -2,6 +2,6 @@
   "name": "mycapture-ui-tests",
   "private": true,
   "description": "Headless browser tests for the myCapture editor (mocked Tauri backend)",
-  "scripts": { "test": "node editor.test.js && node moon.test.js && node sharing.test.js && node sharebutton.test.js && node spanish.test.js" },
+  "scripts": { "test": "node editor.test.js && node moon.test.js && node sharing.test.js && node sharebutton.test.js && node spanish.test.js && node scrollbar.test.js" },
   "devDependencies": { "puppeteer-core": "23.11.1" }
 }

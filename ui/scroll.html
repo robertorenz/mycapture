@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>myCapture scrolling capture</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  html, body { background: transparent !important; overflow: hidden; }
+  .pill {
+    position: absolute; inset: 4px; display: flex; align-items: center; gap: 4px; padding: 0 6px 0 4px;
+    background: rgba(11, 18, 32, .97); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .45);
+  }
+  .grip { width: 22px; height: 100%; display: grid; place-items: center; color: #4b5b7e; cursor: grab; }
+  .status { display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 0 8px; line-height: 1.25; }
+  #msg { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #size { font: 600 12px ui-monospace, Consolas, monospace; color: var(--muted); }
+  body.lost #msg { color: var(--accent-2); }
+  body.end #msg { color: var(--ok); }
+  .spacer { flex: 1; }
+  .btn { height: 34px; }
+  .btn.on { color: var(--accent); border-color: rgba(245, 158, 11, .5); background: rgba(245, 158, 11, .1); }
+</style>
+</head>
+<body>
+<div class="pill">
+  <div class="grip" id="grip" title="Drag to move" data-icon="grip"></div>
+  <div class="status"><span id="msg">Scroll down slowly</span><span id="size"></span></div>
+  <span class="spacer"></span>
+  <button class="btn" id="auto" title="myCapture scrolls the page for you" data-icon="play" style="display:none">Auto-scroll</button>
+  <button class="btn primary" id="done" title="Finish and open the image" data-icon="check">Done</button>
+  <button class="btn icon ghost danger" id="cancel" title="Cancel (Esc)" data-icon="x"></button>
+</div>
+<script src="shared.js"></script>
+<script>
+addStrings({
+  'myCapture scrolling capture': 'Captura con desplazamiento de myCapture',
+  'Drag to move': 'Arrastra para mover',
+  'Scroll down slowly': 'Desplázate hacia abajo despacio',
+  'Too fast — scroll back up a little': 'Demasiado rápido: sube un poco',
+  'Reached the end': 'Llegaste al final',
+  'Size limit reached': 'Se alcanzó el tamaño máximo',
+  'Scrolling for you…': 'Desplazando por ti…',
+  'Auto-scroll': 'Automático',
+  'Stop': 'Detener',
+  'myCapture scrolls the page for you': 'myCapture desplaza la página por ti',
+  'Done': 'Listo',
+  'Finish and open the image': 'Terminar y abrir la imagen',
+  'Cancel (Esc)': 'Cancelar (Esc)',
+  'Saving…': 'Guardando…',
+});
+translatePage();
+hydrateIcons();
+const $ = id => document.getElementById(id);
+let auto = false, busy = false, state = 'ok';
+
+function setAuto(on) {
+  auto = on;
+  $('auto').classList.toggle('on', on);
+  $('auto').innerHTML = `${icon(on ? 'stop' : 'play')}${tr(on ? 'Stop' : 'Auto-scroll')}`;
+  invoke('scroll_auto', { on });
+  show();
+}
+function show(height) {
+  if (height !== undefined) $('size').textContent = `${height.toLocaleString(LANG)} px`;
+  document.body.className = state;
+  $('msg').textContent = tr({ lost: 'Too fast — scroll back up a little', end: 'Reached the end', full: 'Size limit reached' }[state]
+    || (auto ? 'Scrolling for you…' : 'Scroll down slowly'));
+}
+async function done() {
+  if (busy) return;
+  busy = true;
+  $('done').disabled = $('auto').disabled = true;
+  $('msg').textContent = tr('Saving…');
+  try { await invoke('scroll_finish'); } catch (err) { busy = false; Modal.error(tr('Done'), err); }
+}
+
+listen('scroll-progress', e => {
+  const { height, state: s } = e.payload;
+  state = s;
+  if (s === 'end' && auto) { auto = false; setAuto(false); done(); }
+  if (s === 'full') done();
+  show(height);
+});
+$('auto').onclick = () => setAuto(!auto);
+$('done').onclick = done;
+$('cancel').onclick = () => invoke('scroll_cancel');
+$('grip').addEventListener('mousedown', () => currentWindow().startDragging());
+addEventListener('keydown', e => {
+  if (e.key === 'Escape') invoke('scroll_cancel');
+  if (e.key === 'Enter') done();
+});
+invoke('scroll_info').then(i => { if (i.auto_supported) { $('auto').style.display = ''; setAuto(false); } });
+show(0);
+</script>
+</body>
+</html>

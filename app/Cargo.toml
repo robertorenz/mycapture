@@ -1,6 +1,6 @@
 [package]
 name = "mycapture"
-version = "0.2.8"
+version = "0.2.9"
 edition = "2021"
 description = "Screen capture: screenshots, screen video with webcam, instant sharing"
 license = "MIT"
@@ -36,4 +36,4 @@ sys-locale = "0.3"
 
 [target.'cfg(windows)'.dependencies]
 wasapi = "0.26"
-windows = { version = "0.62", features = ["Win32_Graphics_Dxgi", "Win32_Foundation"] }
+windows = { version = "0.62", features = ["Win32_Graphics_Dxgi", "Win32_Foundation", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
