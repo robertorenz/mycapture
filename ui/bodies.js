@@ -140,10 +140,13 @@ const PAINT = {
     const g = fbm(101, 4, 5);
     return (u, v) => {
       let c = mix([132, 92, 66], [222, 196, 168], g(u, v) * 1.5 - .2);
-      const du = Math.min(Math.abs(u - .4), 1 - Math.abs(u - .4)) * 2, dv = v - .56;
-      const heart = Math.hypot(du * 1.25, dv * 1.6 + du * .6) < .16 || Math.hypot(du * 1.25 - .1, dv * 1.6) < .14;
-      if (heart) c = mix(c, [246, 236, 222], .8);
-      if (Math.abs(v - .54) < .08 && !heart) c = mix(c, [86, 46, 32], smooth(.5, .62, g(u * 1.5, v)) * .8);
+      // Tombaugh Regio: a heart (signed distance, tip at the bottom) just north of the equator, soft-edged.
+      const x = Math.abs((((u - .4) % 1 + 1.5) % 1 - .5) * 2 * Math.cos((v - .5) * Math.PI) / .25), y = (.6 - v) / .25;
+      const d = x + y > 1 ? Math.hypot(x - .25, y - .75) - Math.SQRT2 / 4
+        : Math.sqrt(Math.min(Math.hypot(x, y - 1) ** 2, Math.hypot(x - .5 * Math.max(x + y, 0), y - .5 * Math.max(x + y, 0)) ** 2)) * Math.sign(x - y);
+      const heart = smooth(.05, -.05, d);
+      c = mix(c, [248, 240, 228], heart * (.82 + .1 * g(u * 3, v * 3)));
+      c = mix(c, [86, 46, 32], smooth(.42, .54, g((u + .37) % 1, v * 1.5)) * smooth(.13, .06, Math.abs(v - .56)) * .85 * (1 - heart));
       return c;
     };
   },
