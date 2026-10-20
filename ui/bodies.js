@@ -137,16 +137,37 @@ const PAINT = {
     };
   },
   pluto() {
-    const g = fbm(101, 4, 5);
+    // Laid out like the New Horizons view, in degrees from the centre of the heart (Tombaugh Regio).
+    const g = fbm(101, 4, 5), fine = fbm(109, 16, 3), wx = fbm(103, 6, 4), wy = fbm(107, 6, 4);
+    const oval = (x, y, cx, cy, rx, ry, rot) => {
+      const c = Math.cos(rot), s = Math.sin(rot), dx = x - cx, dy = y - cy;
+      return Math.hypot((dx * c + dy * s) / rx, (-dx * s + dy * c) / ry);
+    };
     return (u, v) => {
-      let c = mix([132, 92, 66], [222, 196, 168], g(u, v) * 1.5 - .2);
-      // Tombaugh Regio: a heart (signed distance, tip at the bottom) just north of the equator, soft-edged.
-      const x = Math.abs((((u - .4) % 1 + 1.5) % 1 - .5) * 2 * Math.cos((v - .5) * Math.PI) / .25), y = (.6 - v) / .25;
-      const d = x + y > 1 ? Math.hypot(x - .25, y - .75) - Math.SQRT2 / 4
-        : Math.sqrt(Math.min(Math.hypot(x, y - 1) ** 2, Math.hypot(x - .5 * Math.max(x + y, 0), y - .5 * Math.max(x + y, 0)) ** 2)) * Math.sign(x - y);
-      const heart = smooth(.05, -.05, d);
-      c = mix(c, [248, 240, 228], heart * (.82 + .1 * g(u * 3, v * 3)));
-      c = mix(c, [86, 46, 32], smooth(.42, .54, g((u + .37) % 1, v * 1.5)) * smooth(.13, .06, Math.abs(v - .56)) * .85 * (1 - heart));
+      const lat = (.5 - v) * 180, lon = (((u - .4) % 1 + 1.5) % 1 - .5) * 360;
+      // Ragged outlines: warp the coordinates with noise before testing any shape.
+      const x = lon * Math.cos(lat * Math.PI / 180) + (wx(u, v) - .5) * 16, y = lat + (wy(u, v) - .5) * 12;
+      const n = g(u, v), f = fine(u, v);
+      // Mottled tan ground, paler and greyer towards the north pole (Lowell Regio).
+      let c = mix([150, 102, 70], [216, 184, 150], n * 1.7 - .35);
+      c = mix(c, [200, 190, 168], smooth(38, 72, y) * .75);
+      // Cthulhu: a long dark-red whale along the equator, thick by the heart and tapering westwards.
+      const west = -x, t = (west - 18) / 140;
+      if (t > -.1 && t < 1.1) {
+        const half = 17 * (1 - .65 * Math.max(0, t)) + (n - .5) * 8, mid = -6 + 7 * Math.sin(t * 2.6);
+        const dark = smooth(half + 3, half - 3, Math.abs(y - mid)) * smooth(-.1, .06, t) * smooth(1.1, .9, t);
+        c = mix(c, mix([62, 26, 18], [104, 50, 32], f), dark * .92);
+      }
+      // A string of smaller dark maculae east of the heart.
+      if (x > 38) c = mix(c, [78, 36, 24], smooth(.5, .6, g((u + .5) % 1, v)) * smooth(16, 6, Math.abs(y + 6)) * .85);
+      // Eastern lobe: dimmer, patchy frost that fades into the ground.
+      const east = smooth(1.3, .7, oval(x, y, 20, 13, 22, 21, .4)) * smooth(.28, .55, n * .7 + f * .5);
+      c = mix(c, [224, 212, 194], east * .9);
+      // Sputnik Planitia: the bright, smooth western lobe of nitrogen ice, a teardrop narrowing to the heart's point.
+      const narrow = 1 - .55 * smooth(14, -14, y - 8);
+      const sp = oval(x + 2 * smooth(10, -14, y), y, -9, 14, 14 * narrow, 26, -.18);
+      const ice = smooth(1.06, .9, sp), cells = smooth(.88, .97, 1 - Math.abs(fine(u, (v + .31) % 1) * 2 - 1));
+      c = mix(c, mix([226, 222, 214], [196, 194, 192], cells * .5), ice);
       return c;
     };
   },
