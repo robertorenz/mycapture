@@ -32,6 +32,9 @@
   .orb .halo { border-radius: 50%; background: radial-gradient(circle, var(--glow) 0 40%, transparent 60%); }
   body.sun .orb .halo { background: radial-gradient(circle, rgba(255, 236, 170, .95) 0 34%, var(--glow) 42%, rgba(255, 140, 40, .35) 52%, transparent 70%); animation: corona 4s ease-in-out infinite; }
   @keyframes corona { 50% { transform: scale(1.07); opacity: .85; } }
+  /* The comet's nucleus sits in a corner; flip it onto the half that's on screen. */
+  body.comet.top .orb .globe { transform: scaleY(-1); }
+  body.comet.left .orb .globe { transform: scaleX(-1); }
   /* Seconds per turn, set from Settings → Moon speed; hovering turns it about 3.75× faster. */
   :root { --turn: 75s; }
   .orb .surface { animation: turn var(--turn) linear infinite; }
