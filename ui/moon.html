@@ -287,18 +287,29 @@ function setBody(id) {
   last = 0;
   spinGlobe();
 }
-// Random rolls a different body at start and again every hour.
-let rollTimer = null;
+// Random rolls a different body at start and again every `shuffleMins` (0 = only at start).
+let look = 'moon', rollTimer = null, shuffleMins = 60;
+const roll = () => setBody(pickBody(shownId));
 function setLook(id) {
-  clearInterval(rollTimer);
-  if (id !== 'random') return setBody(id);
-  const roll = () => setBody(pickBody(shownId));
+  look = id;
+  if (id !== 'random') { clearInterval(rollTimer); return setBody(id); }
   roll();
-  rollTimer = setInterval(roll, 3600e3);
+  setShuffle(shuffleMins);
+}
+function setShuffle(mins) {
+  shuffleMins = mins ?? 60;
+  clearInterval(rollTimer);
+  if (shuffleMins > 0 && look === 'random') rollTimer = setInterval(roll, shuffleMins * 60e3);
 }
 listen('moon-speed', e => setSpeed(e.payload));
 listen('moon-body', e => setLook(e.payload));
-invoke('get_settings').then(s => { setEdge(s.moon_edge || 'top'); setSpeed(s.moon_speed); setLook(s.moon_body); });
+listen('moon-shuffle', e => setShuffle(e.payload));
+invoke('get_settings').then(s => {
+  setEdge(s.moon_edge || 'top');
+  setSpeed(s.moon_speed);
+  shuffleMins = s.moon_shuffle ?? 60;
+  setLook(s.moon_body);
+});
 </script>
 </body>
 </html>

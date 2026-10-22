@@ -85,6 +85,8 @@ pub struct Settings {
     pub moon_speed: String,
     /// Which body the launcher shows: "moon" | "sun" | "mercury" | … | "pluto" (see ui/bodies.js), or "random" to roll one
     pub moon_body: String,
+    /// With "random", minutes between rolls (0 = only when myCapture starts).
+    pub moon_shuffle: u32,
     /// Look for a new version on GitHub when myCapture starts.
     pub check_updates: bool,
     /// Newest version Settings was already opened for, so a found update is announced once.
@@ -121,6 +123,7 @@ impl Default for Settings {
             show_moon: true,
             moon_speed: "normal".into(),
             moon_body: "moon".into(),
+            moon_shuffle: 60,
             check_updates: true,
             announced_update: String::new(),
             start_at_login: true,

@@ -19,6 +19,7 @@
   section > p { margin: 0 0 20px; color: var(--muted); }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 4px 18px; margin-bottom: 18px; }
   .row { display: flex; align-items: center; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .row[hidden] { display: none; }
   .row:last-child { border-bottom: 0; }
   .row .lab { flex: 1; min-width: 0; }
   .row .lab b { display: block; font-weight: 600; }
@@ -107,6 +108,16 @@
       <div class="row stack">
         <div class="lab"><b>Launcher look</b><span>Show the moon, the sun, a planet or a random pick as the floating launcher.</span></div>
         <div class="ctl"><input type="hidden" data-k="moon_body" id="moonBody"><div class="bodies" id="bodies"></div></div>
+      </div>
+      <div class="row" id="shuffleRow" hidden>
+        <div class="lab"><b>Change the random pick</b><span>How often Random switches to another body.</span></div>
+        <div class="ctl">
+          <select data-k="moon_shuffle" data-num>
+            <option value="0">Only when myCapture starts</option><option value="5">Every 5 minutes</option>
+            <option value="15">Every 15 minutes</option><option value="30">Every 30 minutes</option>
+            <option value="60">Every hour</option><option value="360">Every 6 hours</option><option value="1440">Every day</option>
+          </select>
+        </div>
       </div>
       <div class="row">
         <div class="lab"><b>Moon speed</b><span>How fast the moon turns. It speeds up while you hover it.</span></div>
@@ -363,6 +374,15 @@ addStrings({
   "Show the moon": "Mostrar la luna",
   "Moon speed": "Velocidad de la luna",
   "Launcher look": "Aspecto del lanzador",
+  "Change the random pick": "Cambiar la elección al azar",
+  "How often Random switches to another body.": "Cada cuánto Aleatorio cambia a otro cuerpo.",
+  "Only when myCapture starts": "Solo al iniciar myCapture",
+  "Every 5 minutes": "Cada 5 minutos",
+  "Every 15 minutes": "Cada 15 minutos",
+  "Every 30 minutes": "Cada 30 minutos",
+  "Every hour": "Cada hora",
+  "Every 6 hours": "Cada 6 horas",
+  "Every day": "Cada día",
   "Show the moon, the sun, a planet or a random pick as the floating launcher.": "Muestra la luna, el sol, un planeta o uno al azar como lanzador flotante.",
   "How fast the moon turns. It speeds up while you hover it.": "Qué tan rápido gira la luna. Se acelera al pasar el puntero.",
   "Still": "Quieta",
@@ -586,6 +606,7 @@ function fill() {
 function markBody() {
   const v = $('moonBody').value, cur = v === 'random' ? v : bodyOf(v).id;
   document.querySelectorAll('.body-tile').forEach(t => t.classList.toggle('on', t.dataset.body === cur));
+  $('shuffleRow').hidden = cur !== 'random';
 }
 $('bodies').innerHTML = [...BODIES, RANDOM].map(b => `<button type="button" class="body-tile" data-body="${b.id}" title="${esc(LANG === 'es' ? b.es : b.name)}">
   <canvas width="104" height="104"></canvas>${b === RANDOM ? icon('shuffle', 'i dice') : ''}${esc(LANG === 'es' ? b.es : b.name)}</button>`).join('');

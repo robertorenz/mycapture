@@ -918,6 +918,9 @@ fn set_settings(app: AppHandle, settings: Settings) -> Result<(), String> {
     if new.moon_body != old.moon_body {
         let _ = app.emit_to("moon", "moon-body", new.moon_body.clone());
     }
+    if new.moon_shuffle != old.moon_shuffle {
+        let _ = app.emit_to("moon", "moon-shuffle", new.moon_shuffle);
+    }
     Ok(())
 }
 

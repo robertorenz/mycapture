@@ -61,6 +61,13 @@ const check = (name, ok, extra = '') => { console.log(`${ok ? 'PASS' : 'FAIL'}  
     rolls.add(await page.evaluate(() => BODIES.map(b => b.id).find(id => document.body.classList.contains(id))));
   }
   check('Random rolls real bodies', ![...rolls].includes(undefined) && rolls.size > 1, JSON.stringify([...rolls]));
+  const shown = () => page.evaluate(() => shownId);
+  await page.evaluate(() => window.__h['moon-shuffle']({ payload: 0.01 })); // 0.6 s, so the test can watch it
+  const r0 = await shown(); await new Promise(r => setTimeout(r, 800));
+  check('Random changes on its own schedule', r0 !== await shown());
+  await page.evaluate(() => window.__h['moon-shuffle']({ payload: 0 }));
+  const r1 = await shown(); await new Promise(r => setTimeout(r, 800));
+  check('"Only at start" stops the changes', r1 === await shown());
   await page.evaluate(() => window.__h['moon-body']({ payload: 'moon' }));
   check('back to the moon', await page.evaluate(() => getComputedStyle(document.querySelector('.globe')).display === 'none'));
 
