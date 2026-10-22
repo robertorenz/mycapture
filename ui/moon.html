@@ -271,8 +271,10 @@ function spinGlobe() {
   globe.draw(-spin);
   if (!still) timer = setTimeout(spinGlobe, Math.max(16, secs * 1000 * .15 / MAP_W));
 }
+let shownId = null;
 function setBody(id) {
   const b = bodyOf(id);
+  shownId = b.id;
   body.classList.remove(...BODIES.map(x => x.id));
   body.classList.add(b.id);
   body.classList.toggle('planet', b.id !== 'moon');
@@ -285,9 +287,18 @@ function setBody(id) {
   last = 0;
   spinGlobe();
 }
+// Random rolls a different body at start and again every hour.
+let rollTimer = null;
+function setLook(id) {
+  clearInterval(rollTimer);
+  if (id !== 'random') return setBody(id);
+  const roll = () => setBody(pickBody(shownId));
+  roll();
+  rollTimer = setInterval(roll, 3600e3);
+}
 listen('moon-speed', e => setSpeed(e.payload));
-listen('moon-body', e => setBody(e.payload));
-invoke('get_settings').then(s => { setEdge(s.moon_edge || 'top'); setSpeed(s.moon_speed); setBody(s.moon_body); });
+listen('moon-body', e => setLook(e.payload));
+invoke('get_settings').then(s => { setEdge(s.moon_edge || 'top'); setSpeed(s.moon_speed); setLook(s.moon_body); });
 </script>
 </body>
 </html>

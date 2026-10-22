@@ -55,6 +55,12 @@ const check = (name, ok, extra = '') => { console.log(`${ok ? 'PASS' : 'FAIL'}  
   await page.evaluate(() => window.__h['moon-speed']({ payload: 'still' }));
   const s0 = await pixels(); await new Promise(r => setTimeout(r, 600));
   check('Still stops a planet too', s0 === await pixels());
+  const rolls = new Set();
+  for (let i = 0; i < 6; i++) {
+    await page.evaluate(() => window.__h['moon-body']({ payload: 'random' }));
+    rolls.add(await page.evaluate(() => BODIES.map(b => b.id).find(id => document.body.classList.contains(id))));
+  }
+  check('Random rolls real bodies', ![...rolls].includes(undefined) && rolls.size > 1, JSON.stringify([...rolls]));
   await page.evaluate(() => window.__h['moon-body']({ payload: 'moon' }));
   check('back to the moon', await page.evaluate(() => getComputedStyle(document.querySelector('.globe')).display === 'none'));
 

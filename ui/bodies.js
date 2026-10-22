@@ -17,6 +17,9 @@ const BODIES = [
   { id: 'pluto', name: 'Pluto', es: 'Plutón', halo: '#f1dcc2', glow: 'rgba(225, 200, 170, .5)' },
 ];
 const bodyOf = id => BODIES.find(b => b.id === id) || BODIES[0];
+// "random" isn't a body of its own: the launcher rolls one of the bodies above.
+const RANDOM = { id: 'random', name: 'Random', es: 'Aleatorio' };
+const pickBody = not => { const pool = BODIES.filter(b => b.id !== not); return pool[Math.floor(Math.random() * pool.length)].id; };
 
 // ---------- procedural maps (equirectangular, wraps around in longitude) ----------
 const MAP_W = 256, MAP_H = 128;

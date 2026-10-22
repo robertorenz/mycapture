@@ -70,6 +70,7 @@
   .body-tile canvas { width: 52px; height: 52px; transition: transform .2s cubic-bezier(.3, 1.6, .5, 1); }
   .body-tile:hover { background: var(--panel-2); color: var(--text); }
   .body-tile:hover canvas { transform: scale(1.08); }
+  .body-tile .dice { position: absolute; top: 6px; right: 6px; width: 15px; height: 15px; color: var(--accent); }
   .body-tile.on { border-color: var(--accent); color: var(--text); box-shadow: 0 0 0 3px rgba(245, 158, 11, .15); }
   @media (max-width: 700px) { .providers { grid-template-columns: 1fr 1fr; } .row .ctl { width: 180px; } }
 </style>
@@ -104,7 +105,7 @@
         <div class="ctl"><label class="switch"><input type="checkbox" data-k="show_moon"><span></span></label></div>
       </div>
       <div class="row stack">
-        <div class="lab"><b>Launcher look</b><span>Show the moon, the sun or a planet as the floating launcher.</span></div>
+        <div class="lab"><b>Launcher look</b><span>Show the moon, the sun, a planet or a random pick as the floating launcher.</span></div>
         <div class="ctl"><input type="hidden" data-k="moon_body" id="moonBody"><div class="bodies" id="bodies"></div></div>
       </div>
       <div class="row">
@@ -362,7 +363,7 @@ addStrings({
   "Show the moon": "Mostrar la luna",
   "Moon speed": "Velocidad de la luna",
   "Launcher look": "Aspecto del lanzador",
-  "Show the moon, the sun or a planet as the floating launcher.": "Muestra la luna, el sol o un planeta como lanzador flotante.",
+  "Show the moon, the sun, a planet or a random pick as the floating launcher.": "Muestra la luna, el sol, un planeta o uno al azar como lanzador flotante.",
   "How fast the moon turns. It speeds up while you hover it.": "Qué tan rápido gira la luna. Se acelera al pasar el puntero.",
   "Still": "Quieta",
   "Slow": "Lenta",
@@ -583,13 +584,19 @@ function fill() {
 
 // Launcher look: one tile per body, painted by bodies.js a little at a time so the window opens fast.
 function markBody() {
-  const cur = bodyOf($('moonBody').value).id;
+  const v = $('moonBody').value, cur = v === 'random' ? v : bodyOf(v).id;
   document.querySelectorAll('.body-tile').forEach(t => t.classList.toggle('on', t.dataset.body === cur));
 }
-$('bodies').innerHTML = BODIES.map(b => `<button type="button" class="body-tile" data-body="${b.id}" title="${esc(LANG === 'es' ? b.es : b.name)}">
-  <canvas width="104" height="104"></canvas>${esc(LANG === 'es' ? b.es : b.name)}</button>`).join('');
+$('bodies').innerHTML = [...BODIES, RANDOM].map(b => `<button type="button" class="body-tile" data-body="${b.id}" title="${esc(LANG === 'es' ? b.es : b.name)}">
+  <canvas width="104" height="104"></canvas>${b === RANDOM ? icon('shuffle', 'i dice') : ''}${esc(LANG === 'es' ? b.es : b.name)}</button>`).join('');
 document.querySelectorAll('.body-tile').forEach((t, i) => {
-  setTimeout(() => paintBody(t.querySelector('canvas'), t.dataset.body), 30 * i);
+  const c = t.querySelector('canvas');
+  if (t.dataset.body === 'random') {
+    // The Random tile shuffles through the bodies.
+    let last = null;
+    const show = () => paintBody(c, last = pickBody(last));
+    setTimeout(() => { show(); setInterval(show, 1400); }, 30 * i);
+  } else setTimeout(() => paintBody(c, t.dataset.body), 30 * i);
   t.onclick = () => { $('moonBody').value = t.dataset.body; markBody(); };
 });
 

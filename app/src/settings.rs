@@ -83,7 +83,7 @@ pub struct Settings {
     pub show_moon: bool,
     /// How fast the moon's surface turns: "still" | "slow" | "normal" | "fast" | "faster"
     pub moon_speed: String,
-    /// Which body the launcher shows: "moon" | "sun" | "mercury" | … | "pluto" (see ui/bodies.js)
+    /// Which body the launcher shows: "moon" | "sun" | "mercury" | … | "pluto" (see ui/bodies.js), or "random" to roll one
     pub moon_body: String,
     /// Look for a new version on GitHub when myCapture starts.
     pub check_updates: bool,

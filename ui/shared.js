@@ -118,6 +118,7 @@ const ICONS = {
   chevron: '<path d="M7 10l5 5 5-5"/>',
   scroll: '<rect x="6" y="3" width="12" height="18" rx="2"/><path d="M12 7v7M9 11l3 3 3-3"/>',
   star: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',
+  shuffle: '<path d="M4 7h3c4 0 6 10 10 10h3M4 17h3c1.5 0 2.7-1.4 3.8-3.2M13.2 10.2C14.3 8.4 15.5 7 17 7h3M17 4l3 3-3 3M17 14l3 3-3 3"/>',
   cloud: '<path d="M7 18a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.4 1.6A3.8 3.8 0 0 1 17.5 18z"/>',
 };
 const icon = (name, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24">${ICONS[name] || ''}</svg>`;
