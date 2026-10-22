@@ -42,7 +42,7 @@ const check = (name, ok, extra = '') => { console.log(`${ok ? 'PASS' : 'FAIL'}  
 
   // Every other body is painted on the canvas and keeps turning.
   const pixels = () => page.evaluate(() => { const c = document.querySelector('.globe'); return c.toDataURL(); });
-  for (const id of ['sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto']) {
+  for (const id of ['sun', 'mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto', 'ceres', 'comet']) {
     await page.evaluate(id => window.__h['moon-body']({ payload: id }), id);
     const shown = await page.evaluate(() => getComputedStyle(document.querySelector('.globe')).display !== 'none' && getComputedStyle(document.querySelector('.orb img')).display === 'none');
     const p0 = await pixels();
@@ -51,7 +51,7 @@ const check = (name, ok, extra = '') => { console.log(`${ok ? 'PASS' : 'FAIL'}  
     check(`${id} is drawn and turns`, shown && p0 !== p1 && p0.length > 2000);
     await page.screenshot({ path: path.join(OUT, `moon_${id}.png`) });
   }
-  check('hide label names the body', await page.evaluate(() => document.getElementById('hideLbl').textContent === 'Hide Pluto'));
+  check('hide label names the body', await page.evaluate(() => document.getElementById('hideLbl').textContent === 'Hide Comet'));
   await page.evaluate(() => window.__h['moon-speed']({ payload: 'still' }));
   const s0 = await pixels(); await new Promise(r => setTimeout(r, 600));
   check('Still stops a planet too', s0 === await pixels());

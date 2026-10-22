@@ -19,7 +19,7 @@ A shiny little moon peeks out from the edge of your screen, half showing. Hover 
 - **English and Spanish**: Settings → General → Language follows the system by default, or pick English or Español. Menus, buttons, messages and the tray menu all switch.
 - **History** of every capture, with copy, share and delete.
 - Global hotkey (default `Ctrl/⌘+Shift+J`), a tray icon, and a dockable moon you can drag to the top, bottom, left or right edge of any monitor.
-- Pick the launcher's look in **Settings → General → Launcher look**: the moon (default), the sun, Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto or **Random**, which rolls a different body when the app starts and then on the schedule you pick under **Change the random pick** (every 5, 15 or 30 minutes, hourly — the default —, every 6 hours, daily, or only at start). Each one turns slowly and speeds up on hover.
+- Pick the launcher's look in **Settings → General → Launcher look**: the moon (default), the sun, Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto, the dwarf planet Ceres, a comet with its tails, or **Random**, which rolls a different body when the app starts and then on the schedule you pick under **Change the random pick** (every 5, 15 or 30 minutes, hourly — the default —, every 6 hours, daily, or only at start). Each one turns slowly and speeds up on hover.
 
 ## Install
 

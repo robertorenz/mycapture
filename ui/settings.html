@@ -66,7 +66,7 @@
   .meter { height: 8px; border-radius: 99px; background: #0d1527; border: 1px solid var(--line); overflow: hidden; margin: 2px 0 12px; display: none; }
   .meter.on { display: block; }
   .meter i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
-  .bodies { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; width: 100%; }
+  .bodies { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; width: 100%; }
   .body-tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px 7px; border-radius: 10px; border: 1px solid var(--line); background: #0d1527; color: var(--muted); font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
   .body-tile canvas { width: 52px; height: 52px; transition: transform .2s cubic-bezier(.3, 1.6, .5, 1); }
   .body-tile:hover { background: var(--panel-2); color: var(--text); }
@@ -106,7 +106,7 @@
         <div class="ctl"><label class="switch"><input type="checkbox" data-k="show_moon"><span></span></label></div>
       </div>
       <div class="row stack">
-        <div class="lab"><b>Launcher look</b><span>Show the moon, the sun, a planet or a random pick as the floating launcher.</span></div>
+        <div class="lab"><b>Launcher look</b><span>Show the moon, the sun, a planet, Ceres, a comet or a random pick as the floating launcher.</span></div>
         <div class="ctl"><input type="hidden" data-k="moon_body" id="moonBody"><div class="bodies" id="bodies"></div></div>
       </div>
       <div class="row" id="shuffleRow" hidden>
@@ -383,7 +383,7 @@ addStrings({
   "Every hour": "Cada hora",
   "Every 6 hours": "Cada 6 horas",
   "Every day": "Cada día",
-  "Show the moon, the sun, a planet or a random pick as the floating launcher.": "Muestra la luna, el sol, un planeta o uno al azar como lanzador flotante.",
+  "Show the moon, the sun, a planet, Ceres, a comet or a random pick as the floating launcher.": "Muestra la luna, el sol, un planeta, Ceres, un cometa o uno al azar como lanzador flotante.",
   "How fast the moon turns. It speeds up while you hover it.": "Qué tan rápido gira la luna. Se acelera al pasar el puntero.",
   "Still": "Quieta",
   "Slow": "Lenta",

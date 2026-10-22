@@ -8,6 +8,7 @@ const BODIES = [
   { id: 'venus', name: 'Venus', es: 'Venus', halo: '#ffe2a8', glow: 'rgba(255, 222, 160, .6)', atm: [255, 236, 190] },
   { id: 'earth', name: 'Earth', es: 'Tierra', halo: '#8fd0ff', glow: 'rgba(110, 180, 255, .65)', atm: [140, 200, 255], spec: true },
   { id: 'mars', name: 'Mars', es: 'Marte', halo: '#ff9b6b', glow: 'rgba(240, 120, 70, .55)', atm: [255, 170, 130] },
+  { id: 'ceres', name: 'Ceres', es: 'Ceres', halo: '#d8d4cc', glow: 'rgba(200, 196, 188, .45)', r: .6 },
   { id: 'jupiter', name: 'Jupiter', es: 'Júpiter', halo: '#ffd9a8', glow: 'rgba(240, 200, 150, .55)' },
   { id: 'saturn', name: 'Saturn', es: 'Saturno', halo: '#ffe6b0', glow: 'rgba(240, 214, 150, .3)', r: .44,
     ring: { inner: 1.24, outer: 2.1, tilt: .36, angle: -18 } },
@@ -15,6 +16,9 @@ const BODIES = [
     ring: { inner: 1.48, outer: 1.6, tilt: .3, angle: 74, faint: true } },
   { id: 'neptune', name: 'Neptune', es: 'Neptuno', halo: '#7fa8ff', glow: 'rgba(80, 130, 255, .65)', atm: [150, 190, 255], spec: true },
   { id: 'pluto', name: 'Pluto', es: 'Plutón', halo: '#f1dcc2', glow: 'rgba(225, 200, 170, .5)' },
+  // A small lumpy nucleus up and to the left, its coma and tails streaming away from the light.
+  { id: 'comet', name: 'Comet', es: 'Cometa', halo: '#bfe6ff', glow: 'rgba(150, 215, 255, .16)', r: .21,
+    comet: { x: -.2, y: -.2 } },
 ];
 const bodyOf = id => BODIES.find(b => b.id === id) || BODIES[0];
 // "random" isn't a body of its own: the launcher rolls one of the bodies above.
@@ -174,7 +178,43 @@ const PAINT = {
       return c;
     };
   },
+  ceres() {
+    // Dark grey, cratered, with the bright salt spots of Occator crater.
+    const g = fbm(111, 4, 5), cr = craters(113, 40, .02, .07);
+    return (u, v) => {
+      let c = mix([70, 68, 66], [150, 146, 140], g(u, v) * 1.4 - .15 + craterShade(cr, u, v));
+      const d = featureDist(u, v, .35, .42);
+      if (d < .05) c = mix(c, [130, 126, 120], (.05 - d) * 12);
+      if (d < .014) c = mix(c, [250, 250, 246], smooth(.014, .006, d));
+      if (featureDist(u, v, .372, .425) < .008) c = [236, 236, 230];
+      return c;
+    };
+  },
+  comet() {
+    // A dusty, dark nucleus with a few bright patches of ice.
+    const g = fbm(121, 3, 5), cr = craters(127, 10, .04, .1);
+    return (u, v) => mix([46, 42, 40], [132, 124, 116], g(u, v) * 1.5 - .2 + craterShade(cr, u, v) * .8 + smooth(.66, .72, g(u * 2 % 1, v)) * .5);
+  },
 };
+
+// The comet's coma and tails, as a colour and an alpha at (nx, ny) in nucleus radii from its centre.
+function cometGlow(nx, ny) {
+  const along = (nx + ny) / Math.SQRT2, side = (ny - nx) / Math.SQRT2, d = Math.hypot(nx, ny);
+  const coma = .9 * Math.exp(-d / 1.1);
+  let dust = 0, ion = 0;
+  if (along > 0) {
+    // The dust tail is broad and curves; the ion tail is narrow, straight and blue.
+    const w = .8 + .3 * along, bent = side - .045 * along * along;
+    dust = .75 * Math.exp(-((bent / w) ** 2)) * Math.exp(-along / 5) * smooth(0, 1.2, along);
+    const wi = .22 + .05 * along;
+    ion = .6 * Math.exp(-(((side + .15 * along) / wi) ** 2)) * Math.exp(-along / 7) * smooth(0, 1.5, along);
+  }
+  const a = 1 - (1 - coma) * (1 - dust) * (1 - ion);
+  if (a < .004) return null;
+  const parts = [[coma, [196, 236, 255]], [dust, [255, 242, 214]], [ion, [120, 180, 255]]], sum = coma + dust + ion;
+  const col = [0, 1, 2].map(k => parts.reduce((s, [w, c]) => s + w * c[k], 0) / sum);
+  return { col, alpha: a, front: false };
+}
 
 const maps = {};
 function mapOf(id) {
@@ -200,11 +240,15 @@ class Globe {
   set(id) {
     const b = this.body = bodyOf(id), n = this.canvas.width, map = this.map = mapOf(b.id);
     this.img = this.ctx.createImageData(n, n);
-    const R = (b.r || .69) * n / 2, c = n / 2, tilt = .32, ct = Math.cos(tilt), st = Math.sin(tilt);
+    const R = (b.r || .69) * n / 2, tilt = .32, ct = Math.cos(tilt), st = Math.sin(tilt);
+    const cx = n / 2 + (b.comet ? b.comet.x * n : 0), cy = n / 2 + (b.comet ? b.comet.y * n : 0);
     const L = [-.3, -.38, .875], px = [];
     const ring = b.ring, ra = ring && ring.angle * Math.PI / 180;
+    // A comet's nucleus is a lumpy potato rather than a sphere.
+    const lump = b.comet ? th => 1 + .12 * Math.sin(2 * th + 1) + .06 * Math.sin(3 * th + 2.4) : () => 1;
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-      const nx = (x + .5 - c) / R, ny = (y + .5 - c) / R, d2 = nx * nx + ny * ny;
+      const ox = (x + .5 - cx) / R, oy = (y + .5 - cy) / R, k = lump(Math.atan2(oy, ox));
+      const nx = ox / k, ny = oy / k, d2 = nx * nx + ny * ny;
       const p = { i: (y * n + x) * 4 };
       if (d2 < 1.08) {
         const nz = Math.sqrt(Math.max(0, 1 - d2));
@@ -232,6 +276,11 @@ class Globe {
           const col = ring.faint ? [190, 236, 240] : mix([170, 140, 96], [240, 224, 186], .6 + .4 * Math.sin(t * 11));
           p.ring = { col, alpha, front: ry > 0 };
         }
+      }
+      if (b.comet) {
+        // Fade the glow out in a circle so it sits in the round launcher.
+        const g = cometGlow(ox, oy), edge = smooth(.5, .36, Math.hypot(x + .5 - n / 2, y + .5 - n / 2) / n);
+        if (g && edge > 0) { g.alpha *= edge; p.ring = g; }
       }
       if (p.u !== undefined || p.ring) px.push(p);
     }
