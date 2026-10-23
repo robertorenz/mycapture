@@ -68,9 +68,11 @@
   .meter i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
   .bodies { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; width: 100%; }
   .body-tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px 7px; border-radius: 10px; border: 1px solid var(--line); background: #0d1527; color: var(--muted); font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
-  .body-tile canvas { width: 52px; height: 52px; transition: transform .2s cubic-bezier(.3, 1.6, .5, 1); }
+  .body-tile .art { position: relative; width: 52px; height: 52px; transition: transform .2s cubic-bezier(.3, 1.6, .5, 1); }
+  .body-tile .art canvas { width: 100%; height: 100%; display: block; }
+  .body-tile .tail { transform: scale(calc(52 / 70)); transform-origin: 0 0; }
   .body-tile:hover { background: var(--panel-2); color: var(--text); }
-  .body-tile:hover canvas { transform: scale(1.08); }
+  .body-tile:hover .art { transform: scale(1.08); }
   .body-tile .dice { position: absolute; top: 6px; right: 6px; width: 15px; height: 15px; color: var(--accent); }
   .body-tile.on { border-color: var(--accent); color: var(--text); box-shadow: 0 0 0 3px rgba(245, 158, 11, .15); }
   @media (max-width: 700px) { .providers { grid-template-columns: 1fr 1fr; } .row .ctl { width: 180px; } }
@@ -609,7 +611,7 @@ function markBody() {
   $('shuffleRow').hidden = cur !== 'random';
 }
 $('bodies').innerHTML = [...BODIES, RANDOM].map(b => `<button type="button" class="body-tile" data-body="${b.id}" title="${esc(LANG === 'es' ? b.es : b.name)}">
-  <canvas width="104" height="104"></canvas>${b === RANDOM ? icon('shuffle', 'i dice') : ''}${esc(LANG === 'es' ? b.es : b.name)}</button>`).join('');
+  <span class="art"><canvas width="104" height="104"></canvas>${b.comet ? COMET_TAIL : ''}</span>${b === RANDOM ? icon('shuffle', 'i dice') : ''}${esc(LANG === 'es' ? b.es : b.name)}</button>`).join('');
 document.querySelectorAll('.body-tile').forEach((t, i) => {
   const c = t.querySelector('canvas');
   if (t.dataset.body === 'random') {

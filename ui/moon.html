@@ -35,26 +35,9 @@
   /* The comet's nucleus sits in a corner; flip it onto the half that's on screen. */
   body.comet.top .orb .globe, body.comet.top .tail { transform: scaleY(-1); }
   body.comet.left .orb .globe, body.comet.left .tail { transform: scaleX(-1); }
-  /* Sparkles drift down the comet's tail, along the curve of its dust tail, and twinkle out.
-     The axis starts at the nucleus (bodies.js puts it at -.2, -.2 of the canvas) and points down-right. */
-  .tail { position: absolute; inset: 0; display: none; pointer-events: none; }
+  /* The comet's tail sparkles (shared.css) show only while the comet is the launcher. */
+  .tail { display: none; }
   body.comet .tail { display: block; }
-  .tail .axis { position: absolute; left: 21px; top: 21px; transform: rotate(45deg); }
-  .tail i {
-    position: absolute; left: -1.25px; top: -1.25px; width: 2.5px; height: 2.5px; border-radius: 50%;
-    background: #fff; box-shadow: 0 0 3px 1px rgba(200, 230, 255, .9);
-    opacity: 0; animation: drift var(--d, 3s) linear var(--w, 0s) infinite;
-  }
-  .tail i::before, .tail i::after { content: ''; position: absolute; left: 50%; top: 50%; background: linear-gradient(90deg, transparent, #fff, transparent); }
-  .tail i::before { width: 9px; height: 1px; margin: -.5px 0 0 -4.5px; }
-  .tail i::after { width: 1px; height: 9px; margin: -4.5px 0 0 -.5px; background: linear-gradient(transparent, #fff, transparent); }
-  @keyframes drift {
-    0% { transform: translate(7px, 0) scale(.4); opacity: 0; }
-    15% { opacity: 1; }
-    35% { transform: translate(19px, calc(var(--s) * .35)) scale(1) rotate(45deg); opacity: .5; }
-    55% { opacity: 1; }
-    100% { transform: translate(46px, var(--s)) scale(.3) rotate(90deg); opacity: 0; }
-  }
   body.still .tail i { animation-play-state: paused; }
   /* Seconds per turn, set from Settings → Moon speed; hovering turns it about 3.75× faster. */
   :root { --turn: 75s; }
@@ -78,7 +61,7 @@
     60% { opacity: .9; transform: scale(.9) rotate(30deg); }
   }
   @keyframes shimmer { 50% { filter: drop-shadow(0 1px 2px rgba(15, 23, 42, .45)) drop-shadow(0 0 7px var(--halo)) brightness(1.06); } }
-  @media (prefers-reduced-motion: reduce) { .orb, .orb .surface, .orb .halo, .spark { animation: none !important; } .tail { display: none !important; } }
+  @media (prefers-reduced-motion: reduce) { .orb, .orb .surface, .orb .halo, .spark { animation: none !important; } }
 
   .ray {
     position: absolute; width: 50px; height: 50px; margin: -25px 0 0 -25px;
@@ -110,12 +93,6 @@
       <img src="moon-light.png" alt="">
       <div class="halo"></div>
       <canvas class="globe"></canvas>
-      <div class="tail"><div class="axis">
-        <i style="--s: 6px; --d: 2.8s"></i><i style="--s: 10px; --d: 3.4s; --w: -.9s"></i>
-        <i style="--s: 2px; --d: 2.4s; --w: -1.6s"></i><i style="--s: 12px; --d: 3.9s; --w: -2.3s"></i>
-        <i style="--s: -1px; --d: 3.1s; --w: -.4s"></i><i style="--s: 8px; --d: 2.6s; --w: -1.2s"></i>
-        <i style="--s: 4px; --d: 3.6s; --w: -2.9s"></i>
-      </div></div>
       <span class="spark s1"><svg viewBox="0 0 20 20"><path fill="currentColor" d="M10 0l1.8 8.2L20 10l-8.2 1.8L10 20l-1.8-8.2L0 10l8.2-1.8z"/></svg></span>
       <span class="spark s2"><svg viewBox="0 0 20 20"><path fill="currentColor" d="M10 0l1.8 8.2L20 10l-8.2 1.8L10 20l-1.8-8.2L0 10l8.2-1.8z"/></svg></span>
       <span class="spark s3"><svg viewBox="0 0 20 20"><path fill="currentColor" d="M10 0l1.8 8.2L20 10l-8.2 1.8L10 20l-1.8-8.2L0 10l8.2-1.8z"/></svg></span>
@@ -287,6 +264,7 @@ function setSpeed(speed) {
 
 // Planets turn by redrawing the canvas only as often as the surface visibly moves.
 const canvas = document.querySelector('.globe'), orb = document.querySelector('.orb');
+canvas.insertAdjacentHTML('afterend', COMET_TAIL);
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 let globe = null, spin = 0, last = 0, timer = null;
 function spinGlobe() {

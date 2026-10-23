@@ -121,3 +121,24 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
 .menu-star.on svg.i { fill: currentColor; }
 .menu-sep { height: 1px; background: var(--line); margin: 6px 4px; }
 .menu-empty { padding: 10px 12px; color: var(--muted); font-size: 13px; }
+
+/* Sparkles drift down the comet's tail, along the curve of its dust tail, and twinkle out.
+   Sized for a 70px body; the axis starts at the nucleus (bodies.js puts it at -.2, -.2) and points down-right. */
+.tail { position: absolute; left: 0; top: 0; width: 70px; height: 70px; pointer-events: none; }
+.tail .axis { position: absolute; left: 21px; top: 21px; transform: rotate(45deg); }
+.tail i {
+  position: absolute; left: -1.25px; top: -1.25px; width: 2.5px; height: 2.5px; border-radius: 50%;
+  background: #fff; box-shadow: 0 0 3px 1px rgba(200, 230, 255, .9);
+  opacity: 0; animation: drift var(--d, 3s) linear var(--w, 0s) infinite;
+}
+.tail i::before, .tail i::after { content: ''; position: absolute; left: 50%; top: 50%; background: linear-gradient(90deg, transparent, #fff, transparent); }
+.tail i::before { width: 9px; height: 1px; margin: -.5px 0 0 -4.5px; }
+.tail i::after { width: 1px; height: 9px; margin: -4.5px 0 0 -.5px; background: linear-gradient(transparent, #fff, transparent); }
+@keyframes drift {
+  0% { transform: translate(7px, 0) scale(.4); opacity: 0; }
+  15% { opacity: 1; }
+  35% { transform: translate(19px, calc(var(--s) * .35)) scale(1) rotate(45deg); opacity: .5; }
+  55% { opacity: 1; }
+  100% { transform: translate(46px, var(--s)) scale(.3) rotate(90deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .tail { display: none !important; } }

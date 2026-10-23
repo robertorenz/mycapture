@@ -197,6 +197,11 @@ const PAINT = {
   },
 };
 
+// Sparkles that drift down the comet's tail (styled in shared.css), laid over a 70px body.
+const COMET_TAIL = `<div class="tail"><div class="axis">${[
+  [6, 2.8, 0], [10, 3.4, -.9], [2, 2.4, -1.6], [12, 3.9, -2.3], [-1, 3.1, -.4], [8, 2.6, -1.2], [4, 3.6, -2.9],
+].map(([s, d, w]) => `<i style="--s: ${s}px; --d: ${d}s; --w: ${w}s"></i>`).join('')}</div></div>`;
+
 // The comet's coma and tails, as a colour and an alpha at (nx, ny) in nucleus radii from its centre.
 function cometGlow(nx, ny) {
   const along = (nx + ny) / Math.SQRT2, side = (ny - nx) / Math.SQRT2, d = Math.hypot(nx, ny);
