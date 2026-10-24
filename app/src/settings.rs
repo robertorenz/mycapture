@@ -80,6 +80,10 @@ pub struct Settings {
     pub gif_fps: u32,
     /// What to put on the clipboard right after a screenshot: "none" | "image" | "link"
     pub auto_copy: String,
+    /// Where new screenshots and videos are saved (empty = the default captures folder).
+    pub capture_folder: String,
+    /// Save a screenshot as soon as the area is picked: no toolbar, no editor.
+    pub fast_save: bool,
     pub show_moon: bool,
     /// How fast the moon's surface turns: "still" | "slow" | "normal" | "fast" | "faster"
     pub moon_speed: String,
@@ -120,6 +124,8 @@ impl Default for Settings {
             max_height: 0,
             gif_fps: 12,
             auto_copy: "image".into(),
+            capture_folder: String::new(),
+            fast_save: false,
             show_moon: true,
             moon_speed: "normal".into(),
             moon_body: "moon".into(),
@@ -145,6 +151,18 @@ pub fn captures_dir() -> PathBuf {
     let d = dirs::data_dir().unwrap_or_else(std::env::temp_dir).join("myCapture").join("captures");
     let _ = std::fs::create_dir_all(&d);
     d
+}
+
+/// Folder new captures are saved to: the chosen one, else the default captures folder.
+pub fn save_dir(s: &Settings) -> PathBuf {
+    let custom = s.capture_folder.trim();
+    if !custom.is_empty() {
+        let d = PathBuf::from(custom);
+        if std::fs::create_dir_all(&d).is_ok() {
+            return d;
+        }
+    }
+    captures_dir()
 }
 
 impl Settings {

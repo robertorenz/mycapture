@@ -1,5 +1,5 @@
 //! Screen video recording through ffmpeg, with pause/resume implemented as segments.
-use crate::{capture::Rect, codec, history, settings::captures_dir, settings::Settings};
+use crate::{capture::Rect, codec, history, settings::captures_dir, settings::save_dir, settings::Settings};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -333,7 +333,8 @@ pub fn finalize(s: &Settings, mut r: Recording) -> Result<history::Item, String>
     let id = r.id.clone();
     let target = codec::get(&r.codec);
     let file = format!("{id}.{}", target.ext);
-    let dest = captures_dir().join(&file);
+    let dir = save_dir(s);
+    let dest = dir.join(&file);
     // Join (or just remux) the segments into a web-friendly MP4.
     let list = work_dir(&id).join("list.txt");
     let body: String = segs
@@ -378,6 +379,7 @@ pub fn finalize(s: &Settings, mut r: Recording) -> Result<history::Item, String>
         id,
         kind: "video".into(),
         file,
+        dir: history::dir_field(&dir),
         thumb,
         created: chrono::Local::now(),
         width: r.crop.w as u32,

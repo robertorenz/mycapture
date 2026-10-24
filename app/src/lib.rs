@@ -225,6 +225,9 @@ fn image_done(app: &AppHandle, item: history::Item) -> Result<(), String> {
         }
         _ => {}
     }
+    if s.fast_save {
+        return Ok(());
+    }
     open_editor_window(&app, &item.id)
 }
 
@@ -466,7 +469,8 @@ fn scroll_finish(app: AppHandle) -> Result<(), String> {
     close_window(&app, "frame");
     close_window(&app, "scrollbar");
     let img = session.finish();
-    let item = img.and_then(|img| capture::save_image(&img));
+    let dir = settings::save_dir(&settings_of(&app));
+    let item = img.and_then(|img| capture::save_image(&img, &dir));
     match item {
         Ok(item) => image_done(&app, item),
         Err(e) => {
@@ -801,7 +805,15 @@ fn open_settings(app: AppHandle, section: Option<String>) -> Result<(), String> 
 
 #[tauri::command]
 fn open_captures_folder(app: AppHandle) -> Result<(), String> {
-    app.opener().open_path(captures_dir().to_string_lossy(), None::<&str>).map_err(|e| e.to_string())
+    app.opener().open_path(settings::save_dir(&settings_of(&app)).to_string_lossy(), None::<&str>).map_err(|e| e.to_string())
+}
+
+/// Let the user choose the folder new captures are saved to (None = cancelled).
+#[tauri::command(async)]
+fn pick_capture_folder(app: AppHandle) -> Result<Option<String>, String> {
+    let start = settings::save_dir(&settings_of(&app));
+    let Some(dir) = app.dialog().file().set_directory(start).blocking_pick_folder() else { return Ok(None) };
+    Ok(Some(dir.into_path().map_err(|e| e.to_string())?.to_string_lossy().into_owned()))
 }
 
 #[tauri::command]
@@ -889,6 +901,10 @@ fn get_settings(app: AppHandle) -> Settings {
 fn set_settings(app: AppHandle, settings: Settings) -> Result<(), String> {
     let old = settings_of(&app);
     let mut new = settings;
+    new.capture_folder = new.capture_folder.trim().to_string();
+    if !new.capture_folder.is_empty() && std::fs::create_dir_all(&new.capture_folder).is_err() {
+        return Err(tr!("Could not use the folder {}", new.capture_folder));
+    }
     new.moon_x = old.moon_x;
     new.moon_y = old.moon_y;
     new.moon_edge = old.moon_edge;
@@ -1001,7 +1017,13 @@ fn serve_inner(app: &AppHandle, req: &tauri::http::Request<Vec<u8>>) -> tauri::h
     if name.is_empty() || name.contains(['/', '\\']) || name.contains("..") {
         return not_found();
     }
-    let file_path = captures_dir().join(name);
+    let mut file_path = captures_dir().join(name);
+    if !file_path.is_file() {
+        // Captures saved to a folder the user picked are found through history.
+        if let Some(it) = history::list().into_iter().find(|i| i.file == name) {
+            file_path = it.path();
+        }
+    }
     let Ok(mut f) = std::fs::File::open(&file_path) else { return not_found() };
     let len = f.metadata().map(|m| m.len()).unwrap_or(0);
     let mime = match file_path.extension().and_then(|e| e.to_str()).unwrap_or("") {
@@ -1189,6 +1211,7 @@ pub fn run() {
             open_history,
             open_settings,
             open_captures_folder,
+            pick_capture_folder,
             open_url,
             cloud_status,
             update_check,

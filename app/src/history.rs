@@ -9,6 +9,9 @@ pub struct Item {
     /// "image" | "video"
     pub kind: String,
     pub file: String,
+    /// Folder `file` lives in when it is not the default captures folder (thumbs always stay there).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub dir: String,
     pub thumb: String,
     pub created: DateTime<Local>,
     pub width: u32,
@@ -25,7 +28,7 @@ pub struct Item {
 
 impl Item {
     pub fn path(&self) -> PathBuf {
-        captures_dir().join(&self.file)
+        if self.dir.is_empty() { captures_dir() } else { PathBuf::from(&self.dir) }.join(&self.file)
     }
     pub fn thumb_path(&self) -> PathBuf {
         captures_dir().join(&self.thumb)
@@ -74,6 +77,11 @@ pub fn remove(id: &str) -> Result<(), String> {
         let _ = std::fs::remove_file(it.thumb_path());
     }
     save(&items)
+}
+
+/// `Item::dir` value for a capture saved in `dir`.
+pub fn dir_field(dir: &std::path::Path) -> String {
+    if dir == captures_dir() { String::new() } else { dir.to_string_lossy().into_owned() }
 }
 
 /// New capture id / base filename, e.g. `2026-10-17_22-53-04_ab12`.

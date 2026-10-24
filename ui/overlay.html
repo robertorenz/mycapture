@@ -249,6 +249,8 @@ window.addEventListener('mouseup', () => {
     mode = 'selected';
   }
   draw();
+  // Fast save: the picked area is saved right away, no toolbar.
+  if (info?.fast_save && mode === 'selected') takeImage();
 });
 
 cv.addEventListener('dblclick', e => { if (mode === 'selected' && inside({ x: e.clientX, y: e.clientY }, sel)) takeImage(); });

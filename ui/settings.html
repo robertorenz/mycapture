@@ -145,8 +145,17 @@
         </div>
       </div>
       <div class="row">
-        <div class="lab"><b>Captures folder</b><span>Every screenshot and video is kept here.</span></div>
-        <div class="ctl"><button class="btn" id="openFolder" data-icon="folder">Open folder</button></div>
+        <div class="lab"><b>Fast save</b><span>Save the screenshot as soon as you pick the area: no toolbar, no editor. Turn it off to choose image, video or scrolling again.</span></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" data-k="fast_save"><span></span></label></div>
+      </div>
+      <div class="row stack">
+        <div class="lab"><b>Captures folder</b><span>New screenshots and videos are saved here.</span></div>
+        <div class="ctl">
+          <input type="text" data-k="capture_folder" id="captureFolder" readonly placeholder="Default folder">
+          <button class="btn" id="pickFolder" data-icon="folder">Change…</button>
+          <button class="btn ghost" id="resetFolder" title="Go back to the default folder">Use default</button>
+          <button class="btn" id="openFolder" data-icon="folder">Open folder</button>
+        </div>
       </div>
     </div>
   </section>
@@ -401,7 +410,14 @@ addStrings({
   "Upload and copy the link": "Subir y copiar el enlace",
   "Do nothing": "No hacer nada",
   "Captures folder": "Carpeta de capturas",
-  "Every screenshot and video is kept here.": "Aquí se guardan todas las capturas y los videos.",
+  "New screenshots and videos are saved here.": "Aquí se guardan las capturas y los videos nuevos.",
+  "Fast save": "Guardado rápido",
+  "Save the screenshot as soon as you pick the area: no toolbar, no editor. Turn it off to choose image, video or scrolling again.": "Guarda la captura en cuanto eliges el área: sin barra de herramientas ni editor. Desactívalo para volver a elegir imagen, video o desplazamiento.",
+  "Default folder": "Carpeta predeterminada",
+  "Change…": "Cambiar…",
+  "Use default": "Usar la predeterminada",
+  "Go back to the default folder": "Volver a la carpeta predeterminada",
+  "Could not choose the folder": "No se pudo elegir la carpeta",
   "Open folder": "Abrir carpeta",
   "Screen video is encoded by ffmpeg into MP4 (H.264 + AAC), which plays everywhere.": "ffmpeg codifica el video de la pantalla en MP4 (H.264 + AAC), que se reproduce en todas partes.",
   "Leave empty to use the copy included with myCapture (or the one on your PATH), or point to your own ffmpeg.": "Déjalo vacío para usar la copia incluida con myCapture (o la de tu PATH), o indica tu propio ffmpeg.",
@@ -701,6 +717,13 @@ $('checkFf').onclick = async () => {
 };
 $('refreshMic').onclick = loadMics;
 $('openFolder').onclick = () => invoke('open_captures_folder');
+$('pickFolder').onclick = async () => {
+  try {
+    const dir = await invoke('pick_capture_folder');
+    if (dir) $('captureFolder').value = dir;
+  } catch (err) { Modal.error(tr('Could not choose the folder'), err); }
+};
+$('resetFolder').onclick = () => { $('captureFolder').value = ''; };
 $('test').onclick = async () => {
   const st = $('testStatus'), b = $('test');
   b.disabled = true;

@@ -67,6 +67,7 @@ const ES: &[(&str, &str)] = &[
     ("No capture in progress", "No hay ninguna captura en curso"),
     ("Selection is too small", "La selección es demasiado pequeña"),
     ("Capture not found", "No se encontró la captura"),
+    ("Could not use the folder {}", "No se pudo usar la carpeta {}"),
     ("Not recording", "No se está grabando"),
     ("Recording could not start.\n\n{}", "No se pudo iniciar la grabación.\n\n{}"),
     ("Could not register hotkey {}: {}", "No se pudo registrar el atajo {}: {}"),

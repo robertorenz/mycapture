@@ -1,5 +1,5 @@
 //! Screenshot capture: freeze every monitor, let the user pick a region on any of them.
-use crate::{history, settings::captures_dir, AppState};
+use crate::{history, settings::save_dir, AppState};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindowBuilder};
@@ -43,6 +43,8 @@ impl Pending {
 
 #[derive(Serialize)]
 pub struct OverlayInfo {
+    /// Fast save is on: save the screenshot as soon as the area is picked.
+    pub fast_save: bool,
     pub width: u32,
     pub height: u32,
     pub windows: Vec<Rect>,
@@ -203,7 +205,8 @@ pub fn info(app: &AppHandle, idx: usize) -> Result<OverlayInfo, String> {
     let state = app.state::<AppState>();
     let shots = state.pending.lock().unwrap();
     let p = shots.get(idx).ok_or_else(|| tr!("No capture in progress"))?;
-    Ok(OverlayInfo { width: p.image.width(), height: p.image.height(), windows: p.windows.clone() })
+    let fast_save = state.settings.lock().unwrap().fast_save;
+    Ok(OverlayInfo { fast_save, width: p.image.width(), height: p.image.height(), windows: p.windows.clone() })
 }
 
 pub fn frame_png(app: &AppHandle, idx: usize) -> Option<Vec<u8>> {
@@ -241,14 +244,16 @@ pub fn take(app: &AppHandle, idx: usize) -> Result<Pending, String> {
 pub fn finish_image(app: &AppHandle, idx: usize, rect: Rect) -> Result<history::Item, String> {
     let pending = take(app, idx)?;
     let r = clip(rect, pending.image.width(), pending.image.height()).ok_or_else(|| tr!("Selection is too small"))?;
-    save_image(&image::imageops::crop_imm(&pending.image, r.x as u32, r.y as u32, r.w as u32, r.h as u32).to_image())
+    let dir = save_dir(&app.state::<AppState>().settings.lock().unwrap());
+    save_image(&image::imageops::crop_imm(&pending.image, r.x as u32, r.y as u32, r.w as u32, r.h as u32).to_image(), &dir)
 }
 
 /// Store an image capture in history.
-pub fn save_image(crop: &image::RgbaImage) -> Result<history::Item, String> {
+pub fn save_image(crop: &image::RgbaImage, dir: &std::path::Path) -> Result<history::Item, String> {
     let id = history::new_id();
     let item = history::Item {
         file: format!("{id}.png"),
+        dir: history::dir_field(dir),
         thumb: format!("{id}.thumb.jpg"),
         id,
         kind: "image".into(),
@@ -259,7 +264,7 @@ pub fn save_image(crop: &image::RgbaImage) -> Result<history::Item, String> {
         url: None,
         links: Default::default(),
     };
-    crop.save_with_format(captures_dir().join(&item.file), image::ImageFormat::Png).map_err(|e| e.to_string())?;
+    crop.save_with_format(item.path(), image::ImageFormat::Png).map_err(|e| e.to_string())?;
     history::make_image_thumb(crop, &item.thumb_path())?;
     history::add(item.clone())?;
     Ok(item)
