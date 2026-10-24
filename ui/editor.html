@@ -565,6 +565,8 @@ function drawShape(c, s) {
 let origin = { x: 0, y: 0 };
 // The crop (image coordinates, null = everything) and the edge effects are part of the undo history.
 let crop = null, cropDraft = null, cropDrag = null;
+// The canvas size while the mouse is down: it only grows to fit an annotation once the button is released.
+let held = null;
 let fx = { shadow: false, border: false, round: false, torn: false, borderColor: '#0f172a' };
 // Annotations are drawn on a layer the size of the picture, then copied onto the canvas with the edge effects.
 const layer = document.createElement('canvas'), lctx = layer.getContext('2d');
@@ -657,7 +659,7 @@ function render() {
   if (!base.naturalWidth) return;
   // While cropping, show everything so the crop can grow back.
   const cropping = tool === 'crop';
-  const b = crop && !cropping ? crop : contentBounds();
+  const b = held || (crop && !cropping ? crop : contentBounds());
   const x0 = Math.floor(b.x0), y0 = Math.floor(b.y0), w = Math.ceil(b.x1) - x0, h = Math.ceil(b.y1) - y0;
   if (layer.width !== w || layer.height !== h) { layer.width = w; layer.height = h; }
   lctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -921,6 +923,7 @@ $('stage').addEventListener('mousedown', e => {
     render();
     return;
   }
+  held = crop ? { ...crop } : contentBounds();
   // Existing annotations: handles of the selected one, then anything of this kind (or anything with Select).
   if (selected) {
     const h = handleAt(selected, p);
@@ -994,6 +997,7 @@ addEventListener('mousemove', e => {
   render();
 });
 addEventListener('mouseup', () => {
+  held = null;
   if (cropDrag) { cropDrag = null; cropDraft = normCrop(cropDraft); render(); return; }
   if (drag) { drag = null; render(); return; }
   if (!drawing) return;
