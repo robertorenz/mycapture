@@ -122,6 +122,7 @@
   <hr>
   <div id="swatches"></div>
   <hr>
+  <div class="sz" data-size="0.5" title="Extra thin"><i style="height:1px"></i></div>
   <div class="sz" data-size="1" title="Thin"><i style="height:2px"></i></div>
   <div class="sz on" data-size="1.8" title="Medium"><i style="height:4px"></i></div>
   <div class="sz" data-size="3" title="Thick"><i style="height:7px"></i></div>
@@ -179,6 +180,7 @@ addStrings({
   'Crop': 'Recortar',
   'Apply': 'Aplicar',
   'Reset': 'Restablecer',
+  'Extra thin': 'Muy fino',
   'Cancel': 'Cancelar',
   'Thin': 'Fino',
   'Medium': 'Medio',
@@ -549,7 +551,7 @@ function drawShape(c, s) {
       shadow();
       c.beginPath(); c.arc(s.x, s.y, rad, 0, Math.PI * 2); c.fill();
       c.shadowColor = 'transparent';
-      c.lineWidth = Math.max(2, rad / 7); c.strokeStyle = '#fff'; c.stroke();
+      c.lineWidth = Math.max(1.5, rad / 7); c.strokeStyle = '#fff'; c.stroke();
       c.fillStyle = s.color === '#ffffff' || s.color === '#facc15' ? '#0f172a' : '#fff';
       c.font = `800 ${Math.round(rad * 1.15)}px "Segoe UI", -apple-system, sans-serif`;
       c.textAlign = 'center'; c.textBaseline = 'middle';
